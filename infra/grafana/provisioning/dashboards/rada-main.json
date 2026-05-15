@@ -31,7 +31,7 @@
         "name": "pc_id",
         "label": "PC",
         "type": "query",
-        "datasource": { "type": "postgres", "uid": "rada_pg" },
+        "datasource": { "type": "grafana-postgresql-datasource", "uid": "rada_pg" },
         "query": "SELECT pc_id FROM pc_info WHERE is_active = true ORDER BY pc_id",
         "refresh": 2,
         "includeAll": true,
@@ -55,7 +55,7 @@
       "type": "stat",
       "title": "AI Agent 상태 — 40대 PC",
       "description": "pc_info LEFT JOIN 최신 anomaly_history. 클릭 시 상세 대시보드로 이동.",
-      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "rada_pg" },
       "gridPos": { "x": 0, "y": 0, "w": 12, "h": 16 },
       "options": {
         "reduceOptions": {
@@ -105,7 +105,7 @@
       "id": 10,
       "type": "gauge",
       "title": "전체 정상 비율 (%)",
-      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "rada_pg" },
       "gridPos": { "x": 12, "y": 0, "w": 12, "h": 6 },
       "options": {
         "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
@@ -139,7 +139,7 @@
       "id": 11,
       "type": "stat",
       "title": "채굴 의심 PC (최근 10분)",
-      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "rada_pg" },
       "gridPos": { "x": 12, "y": 6, "w": 6, "h": 4 },
       "options": {
         "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
@@ -170,7 +170,7 @@
       "id": 12,
       "type": "stat",
       "title": "점검 대상 PC (최근 10분)",
-      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "rada_pg" },
       "gridPos": { "x": 18, "y": 6, "w": 6, "h": 4 },
       "options": {
         "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
@@ -201,7 +201,7 @@
       "id": 13,
       "type": "piechart",
       "title": "AI 판단 분포",
-      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "rada_pg" },
       "gridPos": { "x": 12, "y": 10, "w": 12, "h": 6 },
       "options": {
         "pieType": "donut",
@@ -229,7 +229,7 @@
       "id": 20,
       "type": "timeseries",
       "title": "이상 점수 추이 (PC별)",
-      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "rada_pg" },
       "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
       "fieldConfig": {
         "defaults": {
@@ -252,7 +252,7 @@
       "id": 30,
       "type": "bargauge",
       "title": "CPU Top 5 (최근 5분)",
-      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "rada_pg" },
       "gridPos": { "x": 12, "y": 16, "w": 4, "h": 8 },
       "options": {
         "orientation": "horizontal",
@@ -287,7 +287,7 @@
       "id": 31,
       "type": "bargauge",
       "title": "GPU Top 5 (최근 5분)",
-      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "rada_pg" },
       "gridPos": { "x": 16, "y": 16, "w": 4, "h": 8 },
       "options": {
         "orientation": "horizontal",
@@ -322,7 +322,7 @@
       "id": 32,
       "type": "bargauge",
       "title": "VRAM Top 5 (최근 5분)",
-      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "rada_pg" },
       "gridPos": { "x": 20, "y": 16, "w": 4, "h": 8 },
       "options": {
         "orientation": "horizontal",

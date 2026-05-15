@@ -31,7 +31,7 @@
         "name": "pc_id",
         "label": "PC",
         "type": "query",
-        "datasource": { "type": "postgres", "uid": "rada_pg" },
+        "datasource": { "type": "grafana-postgresql-datasource", "uid": "rada_pg" },
         "query": "SELECT pc_id FROM pc_info ORDER BY pc_id",
         "refresh": 2,
         "includeAll": false,
@@ -44,7 +44,7 @@
       "id": 1,
       "type": "timeseries",
       "title": "자원 시계열 — CPU / MEM / GPU ($pc_id)",
-      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "rada_pg" },
       "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
       "fieldConfig": {
         "defaults": {
@@ -67,7 +67,7 @@
       "id": 2,
       "type": "timeseries",
       "title": "VRAM / Disk I/O ($pc_id)",
-      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "rada_pg" },
       "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
       "fieldConfig": {
         "defaults": {
@@ -88,7 +88,7 @@
       "id": 3,
       "type": "timeseries",
       "title": "네트워크 시계열 ($pc_id)",
-      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "rada_pg" },
       "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
       "fieldConfig": {
         "defaults": {
@@ -109,7 +109,7 @@
       "id": 4,
       "type": "table",
       "title": "이상 탐지 이력 ($pc_id)",
-      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "rada_pg" },
       "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
       "options": { "showHeader": true },
       "fieldConfig": {
@@ -143,7 +143,7 @@
       "id": 5,
       "type": "table",
       "title": "AI 판단 내역 ($pc_id)",
-      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "rada_pg" },
       "gridPos": { "x": 0, "y": 16, "w": 16, "h": 8 },
       "options": { "showHeader": true },
       "targets": [
@@ -159,7 +159,7 @@
       "type": "table",
       "title": "Top 프로세스 ($pc_id, 최근 스냅샷)",
       "description": "metrics_history.extra->'top_processes' 가 존재할 때만 표시. 부재 시 빈 결과.",
-      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "rada_pg" },
       "gridPos": { "x": 16, "y": 16, "w": 8, "h": 8 },
       "options": { "showHeader": true },
       "targets": [
@@ -175,7 +175,7 @@
       "type": "stat",
       "title": "이상 점수 분해 — score_breakdown ($pc_id, 최근 1건)",
       "description": "최근 1건 anomaly_history.scores.score_breakdown 분해 표시. 1단계에서는 일부 키가 0 placeholder 일 수 있음. retrieval 키는 7단계 추가 예정이며 부재 시 COALESCE 로 0 으로 표시된다.",
-      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "datasource": { "type": "grafana-postgresql-datasource", "uid": "rada_pg" },
       "gridPos": { "x": 0, "y": 24, "w": 24, "h": 6 },
       "fieldConfig": {
         "defaults": {
