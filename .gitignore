@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.py_compile_cache/
+venv/
+.venv/
+.env
+.env.*
+
+# Spring / Gradle
+server-spring/.gradle/
+server-spring/build/
+build/
+
+# Local agent/tool state
+.claude/
+.codex/
+
+# Root-level project documents
+/*.docx
+/*.md
+!/README.md
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# LocalQueue persistence files
+.agent_queue.jsonl
+.agent_queue.jsonl.tmp

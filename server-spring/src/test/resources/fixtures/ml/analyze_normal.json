@@ -1,0 +1,19 @@
+{
+  "overall_severity": "NORMAL",
+  "verdict": "SAFE",
+  "model_name": "rada-anomaly-v1",
+  "confidence": 0.97,
+  "scores": {
+    "cpu": 0.05,
+    "memory": 0.10,
+    "disk": 0.02
+  },
+  "alerts": [],
+  "agent": {
+    "judgment": "NORMAL",
+    "severity": "LOW",
+    "reason": "all metrics within baseline",
+    "action": "NONE",
+    "hw_degradation": "NONE"
+  }
+}

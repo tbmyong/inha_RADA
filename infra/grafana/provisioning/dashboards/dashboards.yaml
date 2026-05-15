@@ -1,0 +1,16 @@
+# RADA Dashboard Provider
+apiVersion: 1
+
+providers:
+  - name: 'rada-dashboards'
+    orgId: 1
+    folder: 'RADA'
+    folderUid: rada_folder
+    type: file
+    disableDeletion: false
+    editable: true
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/provisioning/dashboards
+      foldersFromFilesStructure: false

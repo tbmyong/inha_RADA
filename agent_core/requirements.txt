@@ -1,0 +1,5 @@
+psutil>=5.9,<7.0
+pynvml>=11.5,<13.0
+GPUtil>=1.4.0
+requests>=2.31,<3.0
+PyYAML>=6.0,<7.0

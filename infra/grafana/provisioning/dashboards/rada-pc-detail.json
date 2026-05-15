@@ -1,0 +1,211 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "uid": "rada-pc-detail",
+  "title": "RADA — PC Detail",
+  "tags": ["rada", "pc", "detail"],
+  "timezone": "Asia/Seoul",
+  "schemaVersion": 39,
+  "version": 1,
+  "weekStart": "monday",
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "5s",
+  "templating": {
+    "list": [
+      {
+        "name": "pc_id",
+        "label": "PC",
+        "type": "query",
+        "datasource": { "type": "postgres", "uid": "rada_pg" },
+        "query": "SELECT pc_id FROM pc_info ORDER BY pc_id",
+        "refresh": 2,
+        "includeAll": false,
+        "multi": false
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "자원 시계열 — CPU / MEM / GPU ($pc_id)",
+      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10 }
+        }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawSql": "SELECT collected_at AS time, cpu_percent AS \"CPU\", mem_percent AS \"MEM\", gpu_percent AS \"GPU\" FROM metrics_history WHERE pc_id = '$pc_id' AND $__timeFilter(collected_at) ORDER BY collected_at"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "VRAM / Disk I/O ($pc_id)",
+      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "decmbytes",
+          "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 5 }
+        }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawSql": "SELECT collected_at AS time, vram_mb AS \"VRAM(MB)\", disk_read_mb AS \"Disk Read(MB)\", disk_write_mb AS \"Disk Write(MB)\" FROM metrics_history WHERE pc_id = '$pc_id' AND $__timeFilter(collected_at) ORDER BY collected_at"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "네트워크 시계열 ($pc_id)",
+      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "decmbytes",
+          "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 10 }
+        }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawSql": "SELECT collected_at AS time, inbound_mb AS \"Inbound(MB)\", outbound_mb AS \"Outbound(MB)\" FROM metrics_history WHERE pc_id = '$pc_id' AND $__timeFilter(collected_at) ORDER BY collected_at"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "table",
+      "title": "이상 탐지 이력 ($pc_id)",
+      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "options": { "showHeader": true },
+      "fieldConfig": {
+        "defaults": {
+          "custom": { "align": "left", "displayMode": "auto" },
+          "mappings": [
+            { "type": "value", "options": { "NORMAL": { "color": "green",        "index": 0 } } },
+            { "type": "value", "options": { "LOW":    { "color": "light-yellow", "index": 1 } } },
+            { "type": "value", "options": { "MEDIUM": { "color": "yellow",       "index": 2 } } },
+            { "type": "value", "options": { "HIGH":   { "color": "red",          "index": 3 } } }
+          ]
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "severity" },
+            "properties": [
+              { "id": "custom.cellOptions", "value": { "type": "color-background", "mode": "basic" } }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT detected_at, severity, anomaly_type, COALESCE((scores->'score_breakdown'->>'final')::float, (scores->>'final')::float, (scores->>'total')::float, 0) AS anomaly_score FROM anomaly_history WHERE pc_id = '$pc_id' AND $__timeFilter(detected_at) ORDER BY detected_at DESC LIMIT 200"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "type": "table",
+      "title": "AI 판단 내역 ($pc_id)",
+      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "gridPos": { "x": 0, "y": 16, "w": 16, "h": 8 },
+      "options": { "showHeader": true },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT aj.judged_at, aj.judgment, aj.severity, aj.reason, aj.action, aj.is_mock, aj.confidence FROM ai_judgment_history aj JOIN anomaly_history ah ON ah.id = aj.anomaly_id WHERE ah.pc_id = '$pc_id' AND $__timeFilter(aj.judged_at) ORDER BY aj.judged_at DESC LIMIT 50"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "table",
+      "title": "Top 프로세스 ($pc_id, 최근 스냅샷)",
+      "description": "metrics_history.extra->'top_processes' 가 존재할 때만 표시. 부재 시 빈 결과.",
+      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "gridPos": { "x": 16, "y": 16, "w": 8, "h": 8 },
+      "options": { "showHeader": true },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "WITH latest AS (SELECT extra FROM metrics_history WHERE pc_id = '$pc_id' AND extra ? 'top_processes' ORDER BY collected_at DESC LIMIT 1) SELECT (proc->>'name')::text AS process, (proc->>'cpu_percent')::float AS cpu, (proc->>'mem_percent')::float AS mem FROM latest, LATERAL jsonb_array_elements(latest.extra->'top_processes') AS proc ORDER BY cpu DESC NULLS LAST LIMIT 10"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "type": "stat",
+      "title": "이상 점수 분해 — score_breakdown 8키 ($pc_id, 최근 1건)",
+      "description": "최근 1건 anomaly_history.scores.score_breakdown 8키 분해 표시. 1단계에서는 일부 키가 0 placeholder 일 수 있음 (B의 채움에 의존).",
+      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "gridPos": { "x": 0, "y": 24, "w": 24, "h": 6 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 2,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 40 },
+              { "color": "red", "value": 70 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "orientation": "horizontal",
+        "textMode": "value_and_name",
+        "colorMode": "value",
+        "graphMode": "none"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT\n  COALESCE((scores->'score_breakdown'->>'resource')::float, 0) AS resource,\n  COALESCE((scores->'score_breakdown'->>'network')::float, 0) AS network,\n  COALESCE((scores->'score_breakdown'->>'process')::float, 0) AS process,\n  COALESCE((scores->'score_breakdown'->>'episode')::float, 0) AS episode,\n  COALESCE((scores->'score_breakdown'->>'correlation')::float, 0) AS correlation,\n  COALESCE((scores->'score_breakdown'->>'ml')::float, 0) AS ml,\n  COALESCE((scores->'score_breakdown'->>'context_discount')::float, 0) AS context_discount,\n  COALESCE((scores->'score_breakdown'->>'final')::float, 0) AS final\nFROM anomaly_history\nWHERE pc_id = '$pc_id' AND $__timeFilter(detected_at)\nORDER BY detected_at DESC\nLIMIT 1"
+        }
+      ]
+    }
+  ]
+}

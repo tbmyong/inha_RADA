@@ -1,0 +1,28 @@
+{
+  "pc_id": "pc-fixture-001",
+  "timestamp": "2026-05-07T01:23:45Z",
+  "cpu_percent": 87.5,
+  "cpu_core_count": 8,
+  "memory_percent": 71.2,
+  "memory_used_gb": 12.5,
+  "memory_total_gb": 16.0,
+  "disk_read_mb": 1.5,
+  "disk_write_mb": 2.1,
+  "inbound_mb": 12345.6,
+  "outbound_mb": 7890.1,
+  "inbound_total_mb": 50000.0,
+  "outbound_total_mb": 30000.0,
+  "external_packet_count": 1234,
+  "external_connection_count": 5,
+  "external_connections": [
+    {"remote": "203.0.113.10:443", "state": "ESTABLISHED"}
+  ],
+  "active_ports": [80, 443, 22],
+  "gpu": {"available": true, "load_percent": 22.7, "temp_c": 55.0},
+  "top_processes": [
+    {"pid": 1234, "name": "java", "cpu": 45.2, "mem": 12.1}
+  ],
+  "loop_elapsed": 0.21,
+  "local_alerts": [],
+  "boxplot_signal": {"cpu_iqr_outlier": false}
+}

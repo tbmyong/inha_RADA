@@ -1,0 +1,25 @@
+# RADA PostgreSQL DataSource — grafana_reader (READ ONLY)
+# 03-create-grafana-reader.sh 로 생성한 계정 사용
+apiVersion: 1
+
+datasources:
+  - name: RADA-Postgres
+    type: postgres
+    access: proxy
+    uid: rada_pg
+    url: 127.0.0.1:5432
+    user: grafana_reader
+    database: pc_monitor
+    isDefault: true
+    editable: false
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1500
+      timescaledb: false
+      maxOpenConns: 10
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+      timezone: Asia/Seoul
+    secureJsonData:
+      # 03 스크립트에서 설정한 비밀번호로 교체 (env: GRAFANA_READER_PASSWORD)
+      password: ${GRAFANA_READER_PASSWORD}

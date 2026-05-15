@@ -1,0 +1,356 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "uid": "rada-main",
+  "title": "RADA — Main",
+  "tags": ["rada", "security", "anomaly"],
+  "timezone": "Asia/Seoul",
+  "schemaVersion": 39,
+  "version": 3,
+  "weekStart": "monday",
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "5s",
+  "templating": {
+    "list": [
+      {
+        "name": "pc_id",
+        "label": "PC",
+        "type": "query",
+        "datasource": { "type": "postgres", "uid": "rada_pg" },
+        "query": "SELECT pc_id FROM pc_info WHERE is_active = true ORDER BY pc_id",
+        "refresh": 2,
+        "includeAll": true,
+        "multi": false,
+        "current": { "text": "All", "value": "$__all" }
+      },
+      {
+        "name": "severity",
+        "label": "Severity",
+        "type": "custom",
+        "query": "NORMAL,LOW,MEDIUM,HIGH",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "AI Agent 상태 — 40대 PC",
+      "description": "pc_info LEFT JOIN 최신 anomaly_history. 클릭 시 상세 대시보드로 이동.",
+      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 16 },
+      "options": {
+        "reduceOptions": {
+          "values": true,
+          "calcs": ["lastNotNull"],
+          "fields": "/^severity$/"
+        },
+        "orientation": "auto",
+        "textMode": "value_and_name",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "showPercentChange": false
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [
+            { "type": "value", "options": { "NORMAL": { "text": "정상",      "color": "green",        "index": 0 } } },
+            { "type": "value", "options": { "LOW":    { "text": "관찰",      "color": "light-yellow", "index": 1 } } },
+            { "type": "value", "options": { "MEDIUM": { "text": "점검 필요", "color": "yellow",       "index": 2 } } },
+            { "type": "value", "options": { "HIGH":   { "text": "위험",      "color": "red",          "index": 3 } } }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "green", "value": null }]
+          },
+          "links": [
+            {
+              "title": "PC 상세 보기",
+              "url": "/d/rada-pc-detail/rada-pc-detail?var-pc_id=${__data.fields.pc_id}",
+              "targetBlank": false
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT p.pc_id, COALESCE(a.severity, 'NORMAL') AS severity FROM pc_info p LEFT JOIN LATERAL (SELECT severity FROM anomaly_history WHERE pc_id = p.pc_id ORDER BY detected_at DESC LIMIT 1) a ON true WHERE p.is_active = true ORDER BY p.pc_id"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "type": "gauge",
+      "title": "전체 정상 비율 (%)",
+      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 6 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red",    "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "green",  "value": 90 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT 100.0 * COUNT(*) FILTER (WHERE a.severity IS NULL OR a.severity='NORMAL')::float / NULLIF(COUNT(*),0) AS value FROM pc_info p LEFT JOIN LATERAL (SELECT severity FROM anomaly_history WHERE pc_id = p.pc_id ORDER BY detected_at DESC LIMIT 1) a ON true WHERE p.is_active=true"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "type": "stat",
+      "title": "채굴 의심 PC (최근 10분)",
+      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "gridPos": { "x": 12, "y": 6, "w": 6, "h": 4 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "red" },
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "red", "value": null }]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT COUNT(DISTINCT pc_id) AS value FROM anomaly_history WHERE detected_at > NOW() - INTERVAL '10 minutes' AND severity = 'HIGH'"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "점검 대상 PC (최근 10분)",
+      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "gridPos": { "x": 18, "y": 6, "w": 6, "h": 4 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "colorMode": "background",
+        "graphMode": "none",
+        "textMode": "value_and_name",
+        "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "fixed", "fixedColor": "yellow" },
+          "unit": "none",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [{ "color": "yellow", "value": null }]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT COUNT(DISTINCT pc_id) AS value FROM anomaly_history WHERE detected_at > NOW() - INTERVAL '10 minutes' AND severity = 'MEDIUM'"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "type": "piechart",
+      "title": "AI 판단 분포",
+      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "gridPos": { "x": 12, "y": 10, "w": 12, "h": 6 },
+      "options": {
+        "pieType": "donut",
+        "legend": { "displayMode": "table", "placement": "right", "values": ["value", "percent"] },
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" }
+      },
+      "fieldConfig": {
+        "defaults": { "color": { "mode": "palette-classic" } },
+        "overrides": [
+          { "matcher": { "id": "byName", "options": "Normal" },     "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "green"  } }] },
+          { "matcher": { "id": "byName", "options": "Mining" },     "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "red"    } }] },
+          { "matcher": { "id": "byName", "options": "Heavy Load" }, "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "yellow" } }] },
+          { "matcher": { "id": "byName", "options": "HW Error" },   "properties": [{ "id": "color", "value": { "mode": "fixed", "fixedColor": "orange" } }] }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT CASE WHEN verdict ILIKE '%mining%' THEN 'Mining' WHEN verdict ILIKE '%heavy%' THEN 'Heavy Load' WHEN verdict ILIKE '%hw%' OR verdict ILIKE '%error%' THEN 'HW Error' ELSE 'Normal' END AS metric, COUNT(*) AS value FROM ai_judgment_history WHERE $__timeFilter(judged_at) GROUP BY 1"
+        }
+      ]
+    },
+    {
+      "id": 20,
+      "type": "timeseries",
+      "title": "이상 점수 추이 (PC별)",
+      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 50,
+          "custom": { "drawStyle": "line", "lineWidth": 1, "fillOpacity": 5, "showPoints": "never" }
+        }
+      },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "time_series",
+          "rawSql": "SELECT detected_at AS time, pc_id AS metric, COALESCE((scores->'score_breakdown'->>'final')::float, (scores->>'final')::float, (scores->>'total')::float, 0) AS anomaly_score FROM anomaly_history WHERE $__timeFilter(detected_at) ORDER BY 1"
+        }
+      ]
+    },
+    {
+      "id": 30,
+      "type": "bargauge",
+      "title": "CPU Top 5 (최근 5분)",
+      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "gridPos": { "x": 12, "y": 16, "w": 4, "h": 8 },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": { "values": true, "calcs": ["lastNotNull"], "fields": "/^v$/" },
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red",    "value": 90 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT pc_id, AVG(cpu_percent) AS v FROM metrics_history WHERE collected_at > NOW() - INTERVAL '5 minutes' GROUP BY pc_id ORDER BY v DESC LIMIT 5"
+        }
+      ]
+    },
+    {
+      "id": 31,
+      "type": "bargauge",
+      "title": "GPU Top 5 (최근 5분)",
+      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "gridPos": { "x": 16, "y": 16, "w": 4, "h": 8 },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": { "values": true, "calcs": ["lastNotNull"], "fields": "/^v$/" },
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": null },
+              { "color": "yellow", "value": 70 },
+              { "color": "red",    "value": 90 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT pc_id, AVG(gpu_percent) AS v FROM metrics_history WHERE collected_at > NOW() - INTERVAL '5 minutes' GROUP BY pc_id ORDER BY v DESC LIMIT 5"
+        }
+      ]
+    },
+    {
+      "id": 32,
+      "type": "bargauge",
+      "title": "VRAM Top 5 (최근 5분)",
+      "datasource": { "type": "postgres", "uid": "rada_pg" },
+      "gridPos": { "x": 20, "y": 16, "w": 4, "h": 8 },
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "reduceOptions": { "values": true, "calcs": ["lastNotNull"], "fields": "/^v$/" },
+        "showUnfilled": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "decmbytes",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": null },
+              { "color": "yellow", "value": 4096 },
+              { "color": "red",    "value": 8192 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "format": "table",
+          "rawSql": "SELECT pc_id, AVG(vram_mb) AS v FROM metrics_history WHERE collected_at > NOW() - INTERVAL '5 minutes' GROUP BY pc_id ORDER BY v DESC LIMIT 5"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,26 @@
+[Unit]
+Description=RADA FastAPI ML Server (internal, 127.0.0.1:8000)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rada
+Group=rada
+WorkingDirectory=/opt/rada/ml_server
+EnvironmentFile=-/etc/rada/fastapi.env
+# 외부 노출 금지 — 반드시 127.0.0.1 바인딩
+ExecStart=/opt/rada/venv/bin/uvicorn ml_server:app \
+  --host 127.0.0.1 \
+  --port 8000 \
+  --workers 1 \
+  --log-level info
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65535
+
+StandardOutput=append:/var/log/rada/fastapi.log
+StandardError=append:/var/log/rada/fastapi.log
+
+[Install]
+WantedBy=multi-user.target

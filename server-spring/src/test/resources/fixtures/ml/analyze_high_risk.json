@@ -1,0 +1,24 @@
+{
+  "overall_severity": "HIGH",
+  "verdict": "DANGEROUS",
+  "anomaly_type": "CPU_SPIKE",
+  "message": "sustained CPU saturation with abnormal disk write pattern",
+  "model_name": "rada-anomaly-v1",
+  "confidence": 0.91,
+  "scores": {
+    "cpu": 0.98,
+    "memory": 0.62,
+    "disk": 0.85
+  },
+  "alerts": [
+    {"type": "cpu_overload", "severity": "HIGH"},
+    {"type": "disk_pressure", "severity": "MEDIUM"}
+  ],
+  "agent": {
+    "judgment": "ANOMALY",
+    "severity": "HIGH",
+    "reason": "CPU usage saturated for >60s while disk writes diverge from baseline",
+    "action": "ESCALATE",
+    "hw_degradation": "CONFIRMED"
+  }
+}

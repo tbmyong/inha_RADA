@@ -1,0 +1,59 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: rada-monitor
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5432}/${DB_NAME:pc_monitor}?currentSchema=${DB_SCHEMA:pc_monitor}
+    username: ${DB_USER}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    schemas: ${DB_SCHEMA:pc_monitor}
+    default-schema: ${DB_SCHEMA:pc_monitor}
+    locations: classpath:db/migration
+    validate-on-migrate: true
+    placeholders:
+      api_key_pepper: ${API_KEY_PEPPER}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+    open-in-view: false
+    show-sql: false
+
+ml:
+  server:
+    base-url: ${ML_SERVER_URL:http://localhost:8000}
+    connect-timeout-ms: 2000
+    response-timeout-ms: 5000
+
+security:
+  api-key:
+    pepper: ${API_KEY_PEPPER}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      show-components: never
+
+logging:
+  level:
+    com.lab.monitor: INFO

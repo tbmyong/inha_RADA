@@ -1,0 +1,15 @@
+# /etc/logrotate.d/rada
+# RADA 애플리케이션 로그 회전 정책
+/var/log/rada/*.log {
+    daily
+    rotate 7
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+    dateext
+    dateformat -%Y%m%d
+    su rada rada
+    create 0640 rada rada
+}

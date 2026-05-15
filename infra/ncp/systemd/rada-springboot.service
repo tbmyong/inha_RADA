@@ -1,0 +1,28 @@
+[Unit]
+Description=RADA Spring Boot API (port 8080)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=rada
+Group=rada
+WorkingDirectory=/opt/rada/server-spring
+EnvironmentFile=-/etc/rada/springboot.env
+# 4GB RAM 분배: Spring 512MB, FastAPI ~512MB, Postgres shared_buffers 128MB + 워크메모리 약간, Grafana 약 200MB, OS 여유
+ExecStart=/usr/bin/java -Xms256m -Xmx512m \
+  -Dfile.encoding=UTF-8 \
+  -Duser.timezone=Asia/Seoul \
+  -jar /opt/rada/server-spring/app.jar \
+  --server.port=8080
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=5
+LimitNOFILE=65535
+
+# 로그
+StandardOutput=append:/var/log/rada/springboot.log
+StandardError=append:/var/log/rada/springboot.log
+
+[Install]
+WantedBy=multi-user.target

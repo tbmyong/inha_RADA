@@ -1,0 +1,53 @@
+# RADA 에이전트 샘플 설정
+interval: 5
+
+# 전송 모드 선택
+#   "springboot" — Spring Boot 메인 서버(/api/metrics)로 전송, X-API-Key 헤더 사용
+#   "mlserver"   — FastAPI ML 서버(/analyze)로 직접 전송, 헤더 없음
+mode: springboot
+
+ml_server_url: "http://localhost:8000/analyze"
+spring_boot_url: "http://localhost:8080/api/metrics"
+api_key: null   # mode=springboot 일 때 X-API-Key 헤더로 전송됨
+
+local_window_size: 36       # 5초 * 36 = 3분
+hw_baseline_window: 360     # 5초 * 360 = 30분
+
+normal_ports:
+  - 80
+  - 443
+  - 53
+  - 123
+  - 8443
+  - 5228
+  - 5229
+  - 5230
+  - 1935
+  - 3478
+  - 3479
+  - 5349
+
+thresholds:
+  class:
+    cpu_warn: 85.0
+    cpu_critical: 95.0
+    mem_warn: 88.0
+    mem_critical: 96.0
+    gpu_warn: 85.0
+    gpu_temp: 88.0
+  free:
+    cpu_warn: 70.0
+    cpu_critical: 85.0
+    mem_warn: 80.0
+    mem_critical: 92.0
+    gpu_warn: 75.0
+    gpu_temp: 85.0
+
+absolute_thresholds:
+  cpu_percent: 90.0
+  mem_percent: 95.0
+  gpu_percent: 90.0
+  gpu_temp: 92.0
+  disk_io_mbps: 500.0
+
+hw_degradation_ratio: 1.3

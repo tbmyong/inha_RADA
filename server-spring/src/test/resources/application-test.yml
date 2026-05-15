@@ -1,0 +1,45 @@
+server:
+  port: 0
+
+spring:
+  application:
+    name: rada-monitor-test
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    locations: classpath:db/migration
+    placeholders:
+      api_key_pepper: it-test-pepper
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
+        format_sql: false
+    open-in-view: false
+    show-sql: false
+
+# Plan keys: app.ml.base-url / app.api-key (kept for plan-fidelity).
+# Actual runtime mapping in WebClientConfig is ml.server.base-url; both filled
+# from the WireMock URL via @DynamicPropertySource in AbstractIntegrationTest.
+app:
+  ml:
+    base-url: ${WIREMOCK_URL:http://localhost:0}
+  api-key: test-key
+
+security:
+  api-key:
+    pepper: it-test-pepper
+
+ml:
+  server:
+    base-url: ${WIREMOCK_URL:http://localhost:0}
+    connect-timeout-ms: 1000
+    response-timeout-ms: 1500
+
+logging:
+  level:
+    com.lab.monitor: DEBUG

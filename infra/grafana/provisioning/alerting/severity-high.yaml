@@ -1,0 +1,53 @@
+# RADA AlertRule — severity HIGH 발생 시 알림
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: rada-severity
+    folder: RADA
+    interval: 1m
+    rules:
+      - uid: rada_high_risk
+        title: RADA High Risk Detected
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 300
+              to: 0
+            datasourceUid: rada_pg
+            model:
+              refId: A
+              format: table
+              rawSql: >
+                SELECT COUNT(*) AS value
+                FROM anomaly_history
+                WHERE detected_at > NOW() - INTERVAL '5 minutes'
+                  AND severity = 'HIGH'
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: reduce
+              expression: A
+              reducer: last
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              refId: C
+              type: threshold
+              expression: B
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+        noDataState: OK
+        execErrState: Error
+        for: 1m
+        annotations:
+          summary: "RADA: HIGH 이상 탐지 발생"
+          description: "최근 5분간 severity HIGH 레코드가 1건 이상입니다."
+        labels:
+          severity: high
+          service: rada
+        isPaused: false

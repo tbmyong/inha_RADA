@@ -1,0 +1,24 @@
+{
+  "overall_severity": "LOW",
+  "verdict": "OBSERVE",
+  "message": "minor deviation; continue observation",
+  "scores": {
+    "cpu": 0.42,
+    "memory": 0.31,
+    "disk": 0.18,
+    "score_breakdown": {
+      "final": 0.42,
+      "context_multiplier": 0.9
+    }
+  },
+  "alerts": [
+    {"type": "cpu_warn", "severity": "LOW"}
+  ],
+  "agent": {
+    "judgment": "OBSERVE",
+    "severity": "LOW",
+    "reason": "baseline drift detected; not yet confirmed",
+    "action": "MONITOR",
+    "hw_degradation": "SUSPECTED"
+  }
+}
