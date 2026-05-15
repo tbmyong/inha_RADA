@@ -15,6 +15,7 @@ datasources:
     isDefault: true
     editable: false
     jsonData:
+      database: ${POSTGRES_DB}
       sslmode: disable
       postgresVersion: 1600
       timescaledb: false
