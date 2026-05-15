@@ -81,6 +81,8 @@ services:
       GRAFANA_DB_USER: ${GRAFANA_DB_USER:-rada}
       GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:-rada_dev_pw}
       POSTGRES_DB: ${POSTGRES_DB:-pc_monitor}
+      # Hexmap panel for the LAB-01 honeycomb grid on rada-main dashboard.
+      GF_INSTALL_PLUGINS: marcusolsson-hexmap-panel
       TZ: Asia/Seoul
     volumes:
       - ./infra/grafana/grafana.ini:/etc/grafana/grafana.ini:ro
