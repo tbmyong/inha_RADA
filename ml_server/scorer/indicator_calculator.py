@@ -6,14 +6,26 @@
 """
 from typing import Dict, Any
 
+from ..policy import get_scoring_policy
 
-ML_SCORE_CAP = 5  # IF/LOF ml 기여 상한
+
+# 하위 호환: 일부 외부 import 가능성을 위해 모듈 레벨 상수도 보존
+# (런타임 사용은 정책 파일을 통해 동적으로 결정)
+ML_SCORE_CAP = 5  # default fallback; 실제 사용 시 policy.limits.ml_score_cap
+
+
+def _ml_cap() -> int:
+    try:
+        return int(get_scoring_policy().limits.ml_score_cap)
+    except Exception:
+        return ML_SCORE_CAP
 
 
 def calculate_indicators(signals: Dict[str, Any], slot: str,
                          ml_weighted_score: float = 0.0,
                          sig_pack: Dict[str, Any] = None) -> Dict[str, int]:
     sig_pack = sig_pack or {}
+    ml_cap = _ml_cap()
 
     # ──────────────────────────────────────────
     # 기존 카테고리 (호환 유지)
@@ -73,7 +85,7 @@ def calculate_indicators(signals: Dict[str, Any], slot: str,
     # ── ML 통합 + cap ──
     ml_score = 0
     if signals["ml_anomaly"]:
-        ml_contribution = min(ML_SCORE_CAP, max(1, int(abs(ml_weighted_score) * 5)))
+        ml_contribution = min(ml_cap, max(1, int(abs(ml_weighted_score) * 5)))
         ml_score += ml_contribution
 
     # ──────────────────────────────────────────
@@ -152,13 +164,13 @@ def calculate_indicators(signals: Dict[str, Any], slot: str,
             correlation += 8
 
     # ml after cap
-    ml_breakdown = min(ML_SCORE_CAP, ml_score)
+    ml_breakdown = min(ml_cap, ml_score)
     # ml ≥ cap 이고 rule/correlation 합 0 → ml -= 2
     # 신규 8키 breakdown 의 rule/correlation 카테고리 합으로 판단
     rule_corr_sum = (
         resource + network + process_breakdown + episode + correlation
     )
-    if ml_breakdown >= ML_SCORE_CAP and rule_corr_sum == 0:
+    if ml_breakdown >= ml_cap and rule_corr_sum == 0:
         ml_breakdown = max(0, ml_breakdown - 2)
 
     return {

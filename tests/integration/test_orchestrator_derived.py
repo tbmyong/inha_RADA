@@ -4,7 +4,7 @@ ML 페이로드 22키는 절대 깨지지 않으며, derived_features 는 선택
 """
 from __future__ import annotations
 
-from agent_core.collector.orchestrator import CollectorOrchestrator
+from client_core.collector.orchestrator import CollectorOrchestrator
 
 
 _DERIVED_KEYS = {
@@ -36,7 +36,7 @@ _CORE_20 = [
 
 
 def _build_fast_orchestrator():
-    from agent_core.collector.cpu_mem import CpuMemCollector
+    from client_core.collector.cpu_mem import CpuMemCollector
     return CollectorOrchestrator(cpu_mem=CpuMemCollector(cpu_interval=0.0))
 
 

@@ -7,7 +7,7 @@ status with Grafana.
 
 ## Components
 
-- `agent.py`, `agent_core/`: PC-side metric collection, local detection, and metric sending
+- `agent.py`, `client_core/`: PC-side metric collection, local detection, and metric sending
 - `ml_server/`: FastAPI anomaly analysis server with scoring and model management
 - `server-spring/`: Spring Boot API server for ingestion, authentication, persistence, and query APIs
 - `infra/`: NCP, PostgreSQL, Grafana, systemd, and deployment support files

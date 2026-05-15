@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from agent_core.collector.network import NetworkCollector
+from client_core.collector.network import NetworkCollector
 
 
 class FakeAddr:
@@ -43,8 +43,8 @@ def _make_conns(n_external: int, unique_ips: int = None, unique_ports: int = Non
 
 def test_cap_truncates_at_10_and_raw_preserved():
     conns = _make_conns(15)
-    with patch("agent_core.collector.network.psutil.net_io_counters", return_value=FakeNetIO()), \
-         patch("agent_core.collector.network.psutil.net_connections", return_value=conns):
+    with patch("client_core.collector.network.psutil.net_io_counters", return_value=FakeNetIO()), \
+         patch("client_core.collector.network.psutil.net_connections", return_value=conns):
         nc = NetworkCollector()
         out = nc.collect()
     assert out["external_connection_count_raw"] == 15
@@ -57,8 +57,8 @@ def test_cap_truncates_at_10_and_raw_preserved():
 
 def test_not_truncated_when_under_cap():
     conns = _make_conns(5)
-    with patch("agent_core.collector.network.psutil.net_io_counters", return_value=FakeNetIO()), \
-         patch("agent_core.collector.network.psutil.net_connections", return_value=conns):
+    with patch("client_core.collector.network.psutil.net_io_counters", return_value=FakeNetIO()), \
+         patch("client_core.collector.network.psutil.net_connections", return_value=conns):
         nc = NetworkCollector()
         out = nc.collect()
     assert out["external_connection_count_raw"] == 5
@@ -75,8 +75,8 @@ def test_unique_ip_port_process_counts():
         FakeConn(FakeAddr("10.0.0.1", 50003), FakeAddr("9.9.9.9", 80), pid=2),
         FakeConn(FakeAddr("10.0.0.1", 50004), FakeAddr("1.1.1.1", 8080), pid=3),
     ]
-    with patch("agent_core.collector.network.psutil.net_io_counters", return_value=FakeNetIO()), \
-         patch("agent_core.collector.network.psutil.net_connections", return_value=conns):
+    with patch("client_core.collector.network.psutil.net_io_counters", return_value=FakeNetIO()), \
+         patch("client_core.collector.network.psutil.net_connections", return_value=conns):
         nc = NetworkCollector()
         out = nc.collect()
     assert out["unique_remote_ip_count"] == 3

@@ -8,7 +8,7 @@ from . import defaults
 
 
 @dataclass
-class AgentConfig:
+class ClientConfig:
     interval: int = defaults.INTERVAL
     ml_server_url: str = defaults.ML_SERVER_URL
     spring_boot_url: str = defaults.SPRING_BOOT_URL
@@ -43,9 +43,9 @@ class AgentConfig:
         return self.ml_server_url
 
 
-def _from_dict(data: dict) -> AgentConfig:
+def _from_dict(data: dict) -> ClientConfig:
     if not data:
-        return AgentConfig()
+        return ClientConfig()
     kwargs: dict = {}
     if "interval" in data:
         kwargs["interval"] = int(data["interval"])
@@ -79,10 +79,10 @@ def _from_dict(data: dict) -> AgentConfig:
         kwargs["local_queue_max_bytes"] = int(data["local_queue_max_bytes"])
     if "local_queue_fsync" in data:
         kwargs["local_queue_fsync"] = bool(data["local_queue_fsync"])
-    return AgentConfig(**kwargs)
+    return ClientConfig(**kwargs)
 
 
-def _apply_env_overrides(cfg: AgentConfig) -> AgentConfig:
+def _apply_env_overrides(cfg: ClientConfig) -> ClientConfig:
     """환경변수 RADA_* 가 존재하면 cfg 위에 override."""
     mode = os.environ.get("RADA_MODE")
     ml_url = os.environ.get("RADA_ML_SERVER_URL")
@@ -129,7 +129,7 @@ def _discover_config_path() -> Optional[str]:
     return None
 
 
-def load_config(path: Optional[str] = None, autodiscover: bool = False) -> AgentConfig:
+def load_config(path: Optional[str] = None, autodiscover: bool = False) -> ClientConfig:
     """YAML 파일 경로가 주어지면 파일에서 로드. 환경변수 override 적용.
 
     autodiscover=True 이면 path 인자가 비어있을 때 자동 탐색 (RADA_CONFIG →
@@ -139,18 +139,18 @@ def load_config(path: Optional[str] = None, autodiscover: bool = False) -> Agent
     if not path and autodiscover:
         path = _discover_config_path()
 
-    cfg: AgentConfig
+    cfg: ClientConfig
     if not path:
-        cfg = AgentConfig()
+        cfg = ClientConfig()
     else:
         p = Path(path)
         if not p.exists():
-            cfg = AgentConfig()
+            cfg = ClientConfig()
         else:
             try:
                 import yaml  # type: ignore
             except ImportError:
-                cfg = AgentConfig()
+                cfg = ClientConfig()
             else:
                 with p.open("r", encoding="utf-8") as f:
                     data = yaml.safe_load(f) or {}

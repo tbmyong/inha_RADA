@@ -1,4 +1,4 @@
-"""AgentRuntime.step() 의 실패 큐 자동 drain 통합 테스트.
+"""ClientRuntime.step() 의 실패 큐 자동 drain 통합 테스트.
 
 검증 시나리오:
 - 큐 5건 + 정상 mock → step() 1회로 5건 모두 송신, 큐 0
@@ -11,8 +11,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from agent_core.runtime.loop import AgentRuntime, RETRY_PER_CYCLE
-from agent_core.sender import LocalQueue, MetricsSender
+from client_core.runtime.loop import ClientRuntime, RETRY_PER_CYCLE
+from client_core.sender import LocalQueue, MetricsSender
 
 
 def _build_runtime(monkeypatch, queue: LocalQueue, replay_results):
@@ -20,9 +20,9 @@ def _build_runtime(monkeypatch, queue: LocalQueue, replay_results):
 
     replay_results: replay() 가 반환할 값들의 리스트 (순차 소비).
     """
-    # AgentRuntime.__init__ 안에서 collector 가 실제 psutil 호출을 시도하므로,
+    # ClientRuntime.__init__ 안에서 collector 가 실제 psutil 호출을 시도하므로,
     # collector / detectors / sender 모두를 단순 객체로 대체한다.
-    rt = AgentRuntime.__new__(AgentRuntime)
+    rt = ClientRuntime.__new__(ClientRuntime)
 
     cfg = MagicMock()
     rt.config = cfg

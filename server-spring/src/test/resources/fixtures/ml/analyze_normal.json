@@ -1,6 +1,7 @@
 {
   "overall_severity": "NORMAL",
   "verdict": "SAFE",
+  "policy_version": "scoring-v0.4.0",
   "model_name": "rada-anomaly-v1",
   "confidence": 0.97,
   "scores": {

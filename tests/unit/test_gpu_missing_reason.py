@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-import agent_core.collector.gpu as gpu_mod
-from agent_core.collector.gpu import GpuCollector
+import client_core.collector.gpu as gpu_mod
+from client_core.collector.gpu import GpuCollector
 
 
 def test_returns_tuple_type():
@@ -29,7 +29,7 @@ def test_no_gpu_when_empty_list():
     if not gpu_mod.GPU_AVAILABLE:
         # GPUtil 자체가 없는 환경 → 다른 경로로 검증 (위 테스트가 커버)
         return
-    with patch("agent_core.collector.gpu.GPUtil.getGPUs", return_value=[]):
+    with patch("client_core.collector.gpu.GPUtil.getGPUs", return_value=[]):
         c = GpuCollector()
         data, reason = c.collect()
         assert data is None
@@ -40,7 +40,7 @@ def test_permission_error_classified():
     if not gpu_mod.GPU_AVAILABLE:
         return
     with patch(
-        "agent_core.collector.gpu.GPUtil.getGPUs",
+        "client_core.collector.gpu.GPUtil.getGPUs",
         side_effect=PermissionError("denied"),
     ):
         c = GpuCollector()
@@ -53,7 +53,7 @@ def test_driver_error_classified():
     if not gpu_mod.GPU_AVAILABLE:
         return
     with patch(
-        "agent_core.collector.gpu.GPUtil.getGPUs",
+        "client_core.collector.gpu.GPUtil.getGPUs",
         side_effect=RuntimeError("nvml fail"),
     ):
         c = GpuCollector()

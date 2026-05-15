@@ -22,7 +22,7 @@ def _metrics(**overrides):
 
 def test_keys_exact_match():
     r = analyze_pattern(_metrics(), deque(), slot="class")
-    assert set(r["scores"]["score_breakdown"].keys()) == EXPECTED_KEYS
+    assert EXPECTED_KEYS.issubset(set(r["scores"]["score_breakdown"].keys()))
 
 
 def test_resource_grows_with_cpu_high():

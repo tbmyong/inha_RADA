@@ -1,0 +1,101 @@
+# RADA — LOCAL DEV / TEST ONLY.
+# Production (NCP) keeps using systemd units in infra/ncp/systemd/.
+# Nothing in this file is referenced by the NCP deployment.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: rada-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-pc_monitor}
+      POSTGRES_USER: ${POSTGRES_USER:-rada}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-rada_dev_pw}
+      TZ: Asia/Seoul
+    volumes:
+      - rada_pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rada} -d ${POSTGRES_DB:-pc_monitor}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  ml-server:
+    build:
+      context: .
+      dockerfile: ml_server/Dockerfile
+    container_name: rada-ml
+    environment:
+      RADA_POLICY_DIR: /app/ml_server/config_yaml
+      TZ: Asia/Seoul
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; urllib.request.urlopen('http://127.0.0.1:8000/status', timeout=2); sys.exit(0)\" || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 15s
+
+  spring-server:
+    build:
+      context: ./server-spring
+      dockerfile: Dockerfile
+    container_name: rada-spring
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB:-pc_monitor}
+      DB_SCHEMA: ${DB_SCHEMA:-pc_monitor}
+      DB_USER: ${POSTGRES_USER:-rada}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-rada_dev_pw}
+      ML_SERVER_URL: http://ml-server:8000
+      API_KEY_PEPPER: ${API_KEY_PEPPER:-dev_pepper_change_me}
+      TZ: Asia/Seoul
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ml-server:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health | grep -q UP || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 20
+      start_period: 60s
+
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: rada-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GF_SECURITY_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_SECURITY_ADMIN_PASSWORD:-admin}
+      # Expose datasource creds to provisioning via env-var substitution.
+      GRAFANA_DB_USER: ${GRAFANA_DB_USER:-rada}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:-rada_dev_pw}
+      POSTGRES_DB: ${POSTGRES_DB:-pc_monitor}
+      TZ: Asia/Seoul
+    volumes:
+      - ./infra/grafana/grafana.ini:/etc/grafana/grafana.ini:ro
+      # Datasource provisioning is overridden to point at the postgres
+      # container; dashboards/alerts are reused as-is from the prod tree.
+      - ./infra/grafana/provisioning-docker/datasources:/etc/grafana/provisioning/datasources:ro
+      - ./infra/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ./infra/grafana/provisioning/alerting:/etc/grafana/provisioning/alerting:ro
+      - rada_grafana_data:/var/lib/grafana
+    ports:
+      - "3000:3000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  rada_pgdata:
+  rada_grafana_data:

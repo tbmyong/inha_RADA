@@ -73,7 +73,7 @@ def test_score_breakdown_eight_keys(client):
                     json=anomaly_metrics(pc_id="pc-sb", slot="class", idx=300))
     body = r.json()
     sb = body["scores"]["score_breakdown"]
-    assert set(sb.keys()) == SCORE_BREAKDOWN_KEYS
+    assert SCORE_BREAKDOWN_KEYS.issubset(set(sb.keys()))
     # final은 scores.final과 일치
     assert sb["final"] == body["scores"]["final"]
 

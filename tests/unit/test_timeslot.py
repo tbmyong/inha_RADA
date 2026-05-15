@@ -1,7 +1,7 @@
-"""agent_core.timeslot 테스트."""
+"""client_core.timeslot 테스트."""
 import datetime
 
-from agent_core.timeslot import get_time_slot
+from client_core.timeslot import get_time_slot
 
 
 def test_weekday_morning_is_class():

@@ -1,5 +1,5 @@
-"""agent_core.identity.pc_id 테스트."""
-from agent_core.identity.pc_id import PC_ID, get_fixed_pc_id
+"""client_core.identity.pc_id 테스트."""
+from client_core.identity.pc_id import PC_ID, get_fixed_pc_id
 
 
 def test_pc_id_is_nonempty_string():

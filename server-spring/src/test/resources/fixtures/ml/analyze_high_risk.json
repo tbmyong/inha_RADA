@@ -1,6 +1,7 @@
 {
   "overall_severity": "HIGH",
   "verdict": "DANGEROUS",
+  "policy_version": "scoring-v0.4.0",
   "anomaly_type": "CPU_SPIKE",
   "message": "sustained CPU saturation with abnormal disk write pattern",
   "model_name": "rada-anomaly-v1",

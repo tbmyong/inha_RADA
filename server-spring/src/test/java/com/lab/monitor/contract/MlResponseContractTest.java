@@ -49,6 +49,8 @@ class MlResponseContractTest {
         assertThat(mapped.getAgent().getReason()).isNotBlank();
         assertThat(mapped.getAgent().getAction()).isEqualTo("ESCALATE");
         assertThat(mapped.getAgent().getHwDegradation()).isEqualTo("CONFIRMED");
+
+        assertThat(mapped.getPolicyVersion()).isEqualTo("scoring-v0.4.0");
     }
 
     @Test
@@ -68,6 +70,23 @@ class MlResponseContractTest {
         assertThat(mapped.getAgent().getReason()).isNotBlank();
         assertThat(mapped.getAgent().getAction()).isEqualTo("NONE");
         assertThat(mapped.getAgent().getHwDegradation()).isEqualTo("NONE");
+
+        assertThat(mapped.getPolicyVersion()).isEqualTo("scoring-v0.4.0");
+    }
+
+    @Test
+    void policy_version_absent_is_null() throws IOException {
+        // Compatibility: before Team B ships the scoring v0.4.0 emitter,
+        // ML payloads omit policy_version. Deserialization must still succeed
+        // and the field must map to null.
+        String json = "{\"overall_severity\":\"NORMAL\",\"verdict\":\"SAFE\"," +
+                "\"scores\":{\"cpu\":0.0,\"memory\":0.0,\"disk\":0.0}," +
+                "\"alerts\":[]," +
+                "\"agent\":{\"judgment\":\"NORMAL\",\"severity\":\"LOW\"," +
+                "\"reason\":\"x\",\"action\":\"NONE\",\"hw_degradation\":\"NONE\"}}";
+        MlResponse mapped = mapper.readValue(json, MlResponse.class);
+        assertThat(mapped.getPolicyVersion()).isNull();
+        assertThat(mapped.getOverallSeverity()).isEqualTo("NORMAL");
     }
 
     @Test

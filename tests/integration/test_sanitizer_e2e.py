@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 
-from agent_core.sender import MetricsSender, sanitize_for_json
+from client_core.sender import MetricsSender, sanitize_for_json
 
 
 def test_sanitizer_e2e(numpy_polluted_metrics, ml_request_shim):

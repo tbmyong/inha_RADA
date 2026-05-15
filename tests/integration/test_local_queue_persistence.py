@@ -3,7 +3,7 @@
 인스턴스 A에 put 후 폐기 → 동일 path 로 인스턴스 B 생성 시
 복구된 항목 수와 drain 결과가 동일해야 한다.
 """
-from agent_core.sender import LocalQueue
+from client_core.sender import LocalQueue
 
 
 def test_persistence_across_instances(tmp_path):

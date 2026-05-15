@@ -1,7 +1,7 @@
 """ProcessCollector cpu_percent_normalized 검증."""
 from __future__ import annotations
 
-from agent_core.collector.process import ProcessCollector
+from client_core.collector.process import ProcessCollector
 
 
 def test_cpu_normalized_basic():

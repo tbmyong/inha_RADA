@@ -2,6 +2,7 @@
 from fastapi import APIRouter
 
 from ..storage import pc_history_store, score_history_store, model_store
+from ..retrieval import clear_pc as retrieval_clear_pc
 
 router = APIRouter()
 
@@ -30,6 +31,9 @@ def clear_history(pc_id: str):
             found = True
 
     if model_store.clear_pc(pc_id):
+        found = True
+
+    if retrieval_clear_pc(pc_id):
         found = True
 
     if found:

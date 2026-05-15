@@ -1,4 +1,4 @@
-"""agent_core.sender.metrics_sender 단위 테스트.
+"""client_core.sender.metrics_sender 단위 테스트.
 
 mode 별 응답코드 분기:
 - 200 (mlserver 정상)  → JSON body 반환, 큐 미적재
@@ -13,7 +13,7 @@ import json
 import pytest
 import requests
 
-from agent_core.sender import LocalQueue, MetricsSender
+from client_core.sender import LocalQueue, MetricsSender
 
 
 class _Resp:

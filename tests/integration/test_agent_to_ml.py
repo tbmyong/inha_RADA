@@ -1,4 +1,4 @@
-"""agent_core orchestrator → MetricsSender → ML 서버 e2e.
+"""client_core orchestrator → MetricsSender → ML 서버 e2e.
 
 requests.post 를 TestClient 로 라우팅하는 ml_request_shim 사용 →
 실제 HTTP 없이 ML 서버 /analyze 분석 파이프라인 전체를 검증.
@@ -10,8 +10,8 @@ import json
 import pytest
 import requests
 
-from agent_core.model import MetricsPayload
-from agent_core.sender import LocalQueue, MetricsSender
+from client_core.model import MetricsPayload
+from client_core.sender import LocalQueue, MetricsSender
 from ml_server.model.requests import MetricsRequest
 
 

@@ -25,6 +25,7 @@ from fastapi.testclient import TestClient
 
 from ml_server.main import app
 from ml_server.storage import pc_history_store, model_store, score_history_store
+from ml_server.retrieval import reset_store as _reset_retrieval_store
 
 
 @pytest.fixture(autouse=True)
@@ -43,6 +44,7 @@ def reset_stores():
     model_store.pc_models.clear()
     score_history_store.pc_score_history.clear()
     score_history_store.rule_score_history.clear()
+    _reset_retrieval_store()
     yield
     pc_history_store.pc_history.clear()
     pc_history_store.pc_train_history.clear()
@@ -50,6 +52,7 @@ def reset_stores():
     model_store.pc_models.clear()
     score_history_store.pc_score_history.clear()
     score_history_store.rule_score_history.clear()
+    _reset_retrieval_store()
 
 
 @pytest.fixture
@@ -72,7 +75,7 @@ def _build_synthetic_metrics(pc_id: str, *, cpu: float = 25.0, mem: float = 40.0
     """orchestrator.collect() 형태의 22키 dict 결정론적 합성.
 
     psutil/GPU 의존성을 우회 - 어떤 환경에서도 동일 입력. 22키는
-    agent_core.model.payload.MetricsPayload.keys() 와 일치.
+    client_core.model.payload.MetricsPayload.keys() 와 일치.
     """
     return {
         "pc_id": pc_id,

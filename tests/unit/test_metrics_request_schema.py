@@ -1,6 +1,6 @@
 """MetricsRequest Pydantic 스키마 — 22키 정합 검증.
 
-agent_core.model.payload.ML_PAYLOAD_KEYS (22) 와 일치하는 페이로드가 silent
+client_core.model.payload.ML_PAYLOAD_KEYS (22) 와 일치하는 페이로드가 silent
 drop 없이 모두 접근 가능해야 한다. external_connection_count / loop_elapsed
 누락 버그 회귀 방지.
 """
@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 
 from ml_server.model.requests import MetricsRequest, GpuMetrics
-from agent_core.model.payload import ML_PAYLOAD_KEYS
+from client_core.model.payload import ML_PAYLOAD_KEYS
 
 
 def _full_payload() -> dict:

@@ -11,6 +11,7 @@ from collections import deque
 
 from ..model.requests import MetricsRequest
 from ..storage import score_history_store
+from ..policy import get_scoring_policy
 from .signal_extractor import extract_signals
 from .indicator_calculator import calculate_indicators
 from .context_multiplier import apply_context_multiplier
@@ -18,11 +19,13 @@ from .context_multiplier import apply_context_multiplier
 
 def _build_breakdown(indicators: Dict[str, int],
                      context_discount: int,
-                     final_score: float) -> Dict[str, float]:
-    """8키 breakdown 조립.
+                     final_score: float,
+                     retrieval_score: int = 0) -> Dict[str, float]:
+    """9키 breakdown 조립 (retrieval 추가).
 
-    final = 7개 합(resource+network+process+episode+correlation+ml) + context_discount
-    (≥ 0 clamp). final 자체는 누적 가중 후 score_history_store 가 결정한 값을 사용한다.
+    final = 7개 합(resource+network+process+episode+correlation+ml+retrieval) +
+    context_discount (≥ 0 clamp). final 자체는 누적 가중 후 score_history_store
+    가 결정한 값을 사용한다.
     """
     resource    = int(indicators.get("breakdown_resource", 0))
     network     = int(indicators.get("breakdown_network", 0))
@@ -38,6 +41,7 @@ def _build_breakdown(indicators: Dict[str, int],
         "episode":          episode,
         "correlation":      correlation,
         "ml":               ml_b,
+        "retrieval":        int(retrieval_score),
         "context_discount": discount,
         "final":            round(final_score, 2),
     }
@@ -45,11 +49,12 @@ def _build_breakdown(indicators: Dict[str, int],
 
 def classify_verdict(final_score: float, process_score: int) -> Tuple[str, str]:
     # CONFIRMED_MINING은 별도 verdict가 아닌 HIGH_RISK로 통합 (채굴 확인은 alerts[0].type으로 표현).
-    if final_score >= 14:
+    th = get_scoring_policy().thresholds
+    if final_score >= th.high_risk:
         return "HIGH_RISK", "HIGH"
-    if final_score >= 9:
+    if final_score >= th.suspicious:
         return "SUSPICIOUS", "MEDIUM"
-    if final_score >= 5:
+    if final_score >= th.observe:
         return "OBSERVE", "LOW"
     return "NORMAL", "NORMAL"
 
@@ -116,7 +121,8 @@ def build_alerts(verdict: str, signals: Dict[str, Any], indicators: Dict[str, in
 
 
 def analyze_pattern(metrics: MetricsRequest, history: deque, slot: str,
-                    ml_weighted_score: float = 0.0) -> dict:
+                    ml_weighted_score: float = 0.0,
+                    retrieval_evidence: dict = None) -> dict:
     """Layer 1~4 통합 패턴 분석 (기존 ml_server.py analyze_pattern 동치)."""
     pc_id = metrics.pc_id
 
@@ -136,6 +142,15 @@ def analyze_pattern(metrics: MetricsRequest, history: deque, slot: str,
     )
     context_discount = getattr(apply_context_multiplier, "_last_discount", 0)
     context_discount_clamped = getattr(apply_context_multiplier, "_last_clamped", False)
+
+    # retrieval score 반영 (context discount 전 점수에 가산)
+    retrieval_score = 0
+    if isinstance(retrieval_evidence, dict) and retrieval_evidence.get("available"):
+        try:
+            retrieval_score = int(retrieval_evidence.get("retrieval_score", 0) or 0)
+        except (TypeError, ValueError):
+            retrieval_score = 0
+    adjusted_score = adjusted_score + retrieval_score
 
     # 누적 가중 평균 (최근 5건)
     final_score = score_history_store.append_rule_score(
@@ -157,11 +172,17 @@ def analyze_pattern(metrics: MetricsRequest, history: deque, slot: str,
                "MEDIUM" if any(a["severity"]=="MEDIUM" for a in alerts) else
                "LOW"    if any(a["severity"]=="LOW"    for a in alerts) else "NORMAL")
 
+    try:
+        policy_version = get_scoring_policy().version
+    except Exception:
+        policy_version = "unknown"
+
     return {
         "timetable_slot":   slot,
         "overall_severity": overall,
         "alerts":           alerts,
         "verdict":          verdict,
+        "policy_version":   policy_version,
         "scores": {
             "final":              round(final_score, 2),
             "adjusted":           round(adjusted_score, 2),
@@ -177,7 +198,7 @@ def analyze_pattern(metrics: MetricsRequest, history: deque, slot: str,
             "ml":                 indicators["ml"],
             "context_multiplier": round(multiplier, 2),
             "score_breakdown": _build_breakdown(
-                indicators, context_discount, final_score
+                indicators, context_discount, final_score, retrieval_score
             ),
             "context_discount_clamped": bool(context_discount_clamped),
         },

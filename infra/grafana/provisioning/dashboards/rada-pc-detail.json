@@ -173,8 +173,8 @@
     {
       "id": 7,
       "type": "stat",
-      "title": "이상 점수 분해 — score_breakdown 8키 ($pc_id, 최근 1건)",
-      "description": "최근 1건 anomaly_history.scores.score_breakdown 8키 분해 표시. 1단계에서는 일부 키가 0 placeholder 일 수 있음 (B의 채움에 의존).",
+      "title": "이상 점수 분해 — score_breakdown ($pc_id, 최근 1건)",
+      "description": "최근 1건 anomaly_history.scores.score_breakdown 분해 표시. 1단계에서는 일부 키가 0 placeholder 일 수 있음. retrieval 키는 7단계 추가 예정이며 부재 시 COALESCE 로 0 으로 표시된다.",
       "datasource": { "type": "postgres", "uid": "rada_pg" },
       "gridPos": { "x": 0, "y": 24, "w": 24, "h": 6 },
       "fieldConfig": {
@@ -203,7 +203,7 @@
         {
           "refId": "A",
           "format": "table",
-          "rawSql": "SELECT\n  COALESCE((scores->'score_breakdown'->>'resource')::float, 0) AS resource,\n  COALESCE((scores->'score_breakdown'->>'network')::float, 0) AS network,\n  COALESCE((scores->'score_breakdown'->>'process')::float, 0) AS process,\n  COALESCE((scores->'score_breakdown'->>'episode')::float, 0) AS episode,\n  COALESCE((scores->'score_breakdown'->>'correlation')::float, 0) AS correlation,\n  COALESCE((scores->'score_breakdown'->>'ml')::float, 0) AS ml,\n  COALESCE((scores->'score_breakdown'->>'context_discount')::float, 0) AS context_discount,\n  COALESCE((scores->'score_breakdown'->>'final')::float, 0) AS final\nFROM anomaly_history\nWHERE pc_id = '$pc_id' AND $__timeFilter(detected_at)\nORDER BY detected_at DESC\nLIMIT 1"
+          "rawSql": "SELECT\n  COALESCE((scores->'score_breakdown'->>'resource')::float, 0) AS resource,\n  COALESCE((scores->'score_breakdown'->>'network')::float, 0) AS network,\n  COALESCE((scores->'score_breakdown'->>'process')::float, 0) AS process,\n  COALESCE((scores->'score_breakdown'->>'episode')::float, 0) AS episode,\n  COALESCE((scores->'score_breakdown'->>'correlation')::float, 0) AS correlation,\n  COALESCE((scores->'score_breakdown'->>'ml')::float, 0) AS ml,\n  COALESCE((scores->'score_breakdown'->>'retrieval')::float, 0) AS retrieval,\n  COALESCE((scores->'score_breakdown'->>'context_discount')::float, 0) AS context_discount,\n  COALESCE((scores->'score_breakdown'->>'final')::float, 0) AS final\nFROM anomaly_history\nWHERE pc_id = '$pc_id' AND $__timeFilter(detected_at)\nORDER BY detected_at DESC\nLIMIT 1"
         }
       ]
     }

@@ -1,0 +1,26 @@
+# Docker-only override of the Grafana datasource.
+# Same UID (rada_pg) as the NCP provisioning so the dashboards continue to work.
+# This file is mounted ONLY by docker-compose; the NCP systemd setup keeps
+# using infra/grafana/provisioning/datasources/postgres.yaml unchanged.
+apiVersion: 1
+
+datasources:
+  - name: RADA-Postgres
+    type: postgres
+    access: proxy
+    uid: rada_pg
+    url: postgres:5432
+    user: ${GRAFANA_DB_USER}
+    database: ${POSTGRES_DB}
+    isDefault: true
+    editable: false
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1600
+      timescaledb: false
+      maxOpenConns: 10
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+      timezone: Asia/Seoul
+    secureJsonData:
+      password: ${GRAFANA_DB_PASSWORD}

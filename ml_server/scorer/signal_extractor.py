@@ -11,6 +11,18 @@ from ..config import (
     MINING_PROCESSES, MINING_POOL_IPS, SUSPICIOUS_PATHS, WHITELIST_PROCESSES,
 )
 from ..model.requests import MetricsRequest
+from ..policy import get_allowlist
+
+
+def _effective_whitelist() -> set:
+    """기존 WHITELIST_PROCESSES + YAML allowlist union (대소문자 무시)."""
+    base = {p.lower() for p in WHITELIST_PROCESSES}
+    try:
+        al = get_allowlist()
+        base |= {p.lower() for p in al.whitelist_processes}
+    except Exception:
+        pass
+    return base
 
 
 def extract_signals(metrics: MetricsRequest, history: deque, slot: str,
@@ -22,6 +34,7 @@ def extract_signals(metrics: MetricsRequest, history: deque, slot: str,
     """
     history_list = list(history)
     has_history  = len(history_list) >= 12
+    whitelist_eff = _effective_whitelist()
 
     gpu = metrics.gpu
 
@@ -92,20 +105,20 @@ def extract_signals(metrics: MetricsRequest, history: deque, slot: str,
                     if p.get("name","").lower() in MINING_PROCESSES]
     temp_exec    = [p for p in metrics.top_processes
                     if any(sp in p.get("path","").lower() for sp in SUSPICIOUS_PATHS)
-                    and p.get("name","").lower() not in WHITELIST_PROCESSES]
+                    and p.get("name","").lower() not in whitelist_eff]
 
     # appdata 실행 (Roaming/Local AppData) — temp 와 별도 추적
     appdata_exec = [p for p in metrics.top_processes
                     if "\\appdata\\" in p.get("path","").lower()
                     and "\\appdata\\local\\temp\\" not in p.get("path","").lower()
-                    and p.get("name","").lower() not in WHITELIST_PROCESSES]
+                    and p.get("name","").lower() not in whitelist_eff]
 
     # exec_path_suspicious = temp 또는 appdata
     exec_path_suspicious = bool(temp_exec) or bool(appdata_exec)
 
     # unknown_process_active = top_processes 중 화이트리스트/마이너 외 cpu 50+ 프로세스
     unknown_process_active = any(
-        (p.get("name","").lower() not in WHITELIST_PROCESSES
+        (p.get("name","").lower() not in whitelist_eff
          and p.get("name","").lower() not in MINING_PROCESSES
          and float(p.get("cpu_percent", 0) or 0) >= 50.0)
         for p in metrics.top_processes

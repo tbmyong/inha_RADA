@@ -34,4 +34,6 @@ public class MlResponse {
     private Map<String, Object> scores;
     private List<Map<String, Object>> alerts;
     private AgentJudgmentDto agent;
+    /** Scoring policy version emitted by the ML server (snake: {@code policy_version}); may be null on older ML deployments. */
+    private String policyVersion;
 }

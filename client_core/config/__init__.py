@@ -8,7 +8,7 @@ from .defaults import (
     ABSOLUTE_THRESHOLDS,
     HW_DEGRADATION_RATIO,
 )
-from .loader import load_config, AgentConfig
+from .loader import load_config, ClientConfig
 
 __all__ = [
     "INTERVAL",
@@ -20,5 +20,5 @@ __all__ = [
     "ABSOLUTE_THRESHOLDS",
     "HW_DEGRADATION_RATIO",
     "load_config",
-    "AgentConfig",
+    "ClientConfig",
 ]

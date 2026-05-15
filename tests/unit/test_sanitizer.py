@@ -1,9 +1,9 @@
-"""agent_core.sender.sanitize_for_json 테스트."""
+"""client_core.sender.sanitize_for_json 테스트."""
 import json
 
 import numpy as np
 
-from agent_core.sender import sanitize_for_json
+from client_core.sender import sanitize_for_json
 
 
 def test_numpy_bool_converted():

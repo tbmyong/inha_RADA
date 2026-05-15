@@ -1,7 +1,7 @@
-"""agent_core.window.SlidingWindow 테스트."""
+"""client_core.window.SlidingWindow 테스트."""
 import pytest
 
-from agent_core.window import SlidingWindow
+from client_core.window import SlidingWindow
 
 
 def test_basic_append_and_len():

@@ -1,6 +1,7 @@
 {
   "overall_severity": "LOW",
   "verdict": "OBSERVE",
+  "policy_version": "scoring-v0.4.0",
   "message": "minor deviation; continue observation",
   "scores": {
     "cpu": 0.42,

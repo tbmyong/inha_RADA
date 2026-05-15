@@ -1,7 +1,7 @@
 """CpuMemCollector 메타 키 (logical/physical CPU, uptime) 검증."""
 from __future__ import annotations
 
-from agent_core.collector.cpu_mem import CpuMemCollector
+from client_core.collector.cpu_mem import CpuMemCollector
 
 
 def test_cpu_mem_meta_keys_present():

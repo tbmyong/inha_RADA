@@ -1,4 +1,4 @@
-"""에이전트 메인 루프 오케스트레이션.
+"""클라이언트 메인 루프 오케스트레이션.
 
 기존 agent.py main()의 로직을 클래스로 재배치.
 - collector → window 갱신 → detector → sender → print 순.
@@ -15,7 +15,7 @@ log = logging.getLogger(__name__)
 RETRY_PER_CYCLE = 5
 
 from ..collector import CollectorOrchestrator, GPU_AVAILABLE, PYNVML_AVAILABLE
-from ..config.loader import AgentConfig, load_config
+from ..config.loader import ClientConfig, load_config
 from ..detector import (
     AbsoluteBreachDetector,
     BoxplotDetector,
@@ -28,8 +28,8 @@ from ..timeslot import get_time_slot
 from ..window import SlidingWindow
 
 
-class AgentRuntime:
-    def __init__(self, config: Optional[AgentConfig] = None) -> None:
+class ClientRuntime:
+    def __init__(self, config: Optional[ClientConfig] = None) -> None:
         self.config = config or load_config(autodiscover=True)
 
         self.collector = CollectorOrchestrator(
@@ -125,7 +125,7 @@ class AgentRuntime:
     # ────────────────────────── helpers
     def _banner(self) -> None:
         cfg = self.config
-        print("=== PC 자원 모니터링 에이전트 v9 (모듈화) ===")
+        print("=== PC 자원 모니터링 클라이언트 v9 (모듈화) ===")
         print(f"PC ID:       {PC_ID}")
         print(f"GPU:         {'OK NVIDIA (GPUtil)' if GPU_AVAILABLE else 'X 미지원'}")
         print(f"pynvml:      {'OK' if PYNVML_AVAILABLE else 'X'}")

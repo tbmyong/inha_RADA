@@ -1,10 +1,10 @@
-"""agent_core.sender.local_queue 테스트."""
+"""client_core.sender.local_queue 테스트."""
 import json
 import threading
 
 import pytest
 
-from agent_core.sender import LocalQueue
+from client_core.sender import LocalQueue
 
 
 # ---------------------------------------------------------- in-memory (회귀)

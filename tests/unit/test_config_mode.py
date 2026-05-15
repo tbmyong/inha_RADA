@@ -1,14 +1,14 @@
-"""AgentConfig mode 분기 / target_url / env override 단위 테스트."""
+"""ClientConfig mode 분기 / target_url / env override 단위 테스트."""
 from __future__ import annotations
 
 import pytest
 
-from agent_core.config import defaults
-from agent_core.config.loader import AgentConfig, _from_dict, load_config
+from client_core.config import defaults
+from client_core.config.loader import ClientConfig, _from_dict, load_config
 
 
 def test_default_mode_is_springboot():
-    cfg = AgentConfig()
+    cfg = ClientConfig()
     assert cfg.mode == "springboot"
     assert cfg.spring_boot_url == defaults.SPRING_BOOT_URL
     assert cfg.ml_server_url == defaults.ML_SERVER_URL
@@ -16,20 +16,20 @@ def test_default_mode_is_springboot():
 
 
 def test_mlserver_mode_ok():
-    cfg = AgentConfig(mode="mlserver")
+    cfg = ClientConfig(mode="mlserver")
     assert cfg.mode == "mlserver"
 
 
 def test_invalid_mode_raises():
     with pytest.raises(ValueError):
-        AgentConfig(mode="invalid")
+        ClientConfig(mode="invalid")
 
 
 def test_target_url_branches():
-    sb = AgentConfig(mode="springboot",
+    sb = ClientConfig(mode="springboot",
                      spring_boot_url="http://sb:8080/api/metrics",
                      ml_server_url="http://ml:8000/analyze")
-    ml = AgentConfig(mode="mlserver",
+    ml = ClientConfig(mode="mlserver",
                      spring_boot_url="http://sb:8080/api/metrics",
                      ml_server_url="http://ml:8000/analyze")
     assert sb.target_url() == "http://sb:8080/api/metrics"

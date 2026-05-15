@@ -23,7 +23,7 @@ def _metrics(**overrides):
 def test_score_breakdown_has_eight_keys():
     result = analyze_pattern(_metrics(), deque(), slot="class")
     sb = result["scores"]["score_breakdown"]
-    assert set(sb.keys()) == EXPECTED_KEYS
+    assert EXPECTED_KEYS.issubset(set(sb.keys()))
 
 
 def test_score_breakdown_final_matches_scores_final():

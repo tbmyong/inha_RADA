@@ -8,13 +8,11 @@
 from __future__ import annotations
 from typing import Dict, Tuple, Any, Optional
 
+from ..policy import get_scoring_policy
 
-MAX_CONTEXT_DISCOUNT = -4  # clamp lower bound (가장 큰 감점)
 
-
-# ──────────────────────────────────────────
-# 정황 카테고리 감점 매핑
-# ──────────────────────────────────────────
+# 하위 호환 모듈 레벨 (런타임은 정책 기반 동적 lookup 사용)
+MAX_CONTEXT_DISCOUNT = -4
 _CONTEXT_DISCOUNTS = {
     "startup":            -1,
     "security_scan":      -2,
@@ -24,21 +22,43 @@ _CONTEXT_DISCOUNTS = {
 }
 
 
+def _ctx_map() -> Dict[str, int]:
+    try:
+        return dict(get_scoring_policy().context_discounts.raw)
+    except Exception:
+        return _CONTEXT_DISCOUNTS
+
+
+def _max_discount() -> int:
+    try:
+        return int(get_scoring_policy().limits.max_context_discount)
+    except Exception:
+        return MAX_CONTEXT_DISCOUNT
+
+
+def _danger_override_clamp() -> int:
+    try:
+        return int(get_scoring_policy().limits.danger_override_max_discount)
+    except Exception:
+        return -1
+
+
 def _collect_context_hints(metrics, signals: Dict[str, Any]) -> list:
     """metrics/signals에서 context 카테고리 라벨을 추출.
 
     우선순위: derived_features.context_hint > local_alerts > metrics.slot 휴리스틱
     """
     hints: list = []
+    ctx_map = _ctx_map()
 
     df = getattr(metrics, "derived_features", None) or {}
     if isinstance(df, dict):
         ch = df.get("context_hint")
-        if isinstance(ch, str) and ch in _CONTEXT_DISCOUNTS:
+        if isinstance(ch, str) and ch in ctx_map:
             hints.append(ch)
         elif isinstance(ch, list):
             for c in ch:
-                if c in _CONTEXT_DISCOUNTS:
+                if c in ctx_map:
                     hints.append(c)
 
     # local_alerts 에서 type 기반 카테고리화
@@ -58,20 +78,23 @@ def _collect_context_hints(metrics, signals: Dict[str, Any]) -> list:
 
 def _compute_context_discount(metrics, signals: Dict[str, Any], slot: str) -> int:
     """카테고리 감점 누적 + class_or_free 기본 감점(slot 정의 시) + clamp."""
+    ctx_map = _ctx_map()
+    max_disc = _max_discount()
+
     discount = 0
     seen = set()
     for h in _collect_context_hints(metrics, signals):
         if h in seen:
             continue
         seen.add(h)
-        discount += _CONTEXT_DISCOUNTS[h]
+        discount += int(ctx_map.get(h, 0))
 
-    # slot이 정의돼 있고 다른 감점이 전혀 없으면 class_or_free -1 1회 적용
+    # slot이 정의돼 있고 다른 감점이 전혀 없으면 class_or_free 1회 적용
     if slot in ("class", "free") and not seen:
-        discount += _CONTEXT_DISCOUNTS["class_or_free"]
+        discount += int(ctx_map.get("class_or_free", 0))
 
-    if discount < MAX_CONTEXT_DISCOUNT:
-        discount = MAX_CONTEXT_DISCOUNT
+    if discount < max_disc:
+        discount = max_disc
     return discount
 
 
@@ -131,7 +154,8 @@ def apply_context_multiplier(
         discount = _compute_context_discount(metrics, signals, slot or "")
         # danger override
         if _danger_override(signals):
-            new_d = max(discount, -1)
+            cap = _danger_override_clamp()
+            new_d = max(discount, cap)
             if new_d != discount:
                 clamped = True
             discount = new_d

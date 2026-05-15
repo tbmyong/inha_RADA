@@ -1,0 +1,10 @@
+# Local dev/test profile activated by SPRING_PROFILES_ACTIVE=docker
+# (compose service hostnames are used as defaults; values can still be
+# overridden by environment variables.)
+spring:
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:postgres}:${DB_PORT:5432}/${DB_NAME:pc_monitor}?currentSchema=${DB_SCHEMA:pc_monitor}
+
+ml:
+  server:
+    base-url: ${ML_SERVER_URL:http://ml-server:8000}

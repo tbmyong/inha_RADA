@@ -9,6 +9,7 @@ User=rada
 Group=rada
 WorkingDirectory=/opt/rada/ml_server
 EnvironmentFile=-/etc/rada/fastapi.env
+Environment="RADA_POLICY_DIR=/opt/rada/ml_server/config_yaml"
 # 외부 노출 금지 — 반드시 127.0.0.1 바인딩
 ExecStart=/opt/rada/venv/bin/uvicorn ml_server:app \
   --host 127.0.0.1 \

@@ -22,6 +22,23 @@ def build_prompt(metrics: MetricsRequest, pattern_result: dict,
     if global_hw.get("detected"):
         global_hw_text = f"\n[전체 PC 노후화 신호]\n{global_hw.get('detail','')}"
 
+    retrieval_text = ""
+    ev = pattern_result.get("retrieval_evidence")
+    if isinstance(ev, dict) and ev.get("available"):
+        top_k_lines = []
+        for c in ev.get("top_k", [])[:3]:
+            top_k_lines.append(
+                f"- {c.get('segment_id')} dist={c.get('distance')} "
+                f"verdict={c.get('verdict')} score={c.get('score')}"
+            )
+        topk_block = "\n".join(top_k_lines) if top_k_lines else "- 없음"
+        retrieval_text = (
+            f"\n[유사 과거 사례 top-k]\n{topk_block}\n"
+            f"[Peer 비교] same_slot_peers={ev.get('same_slot_peer_count',0)} "
+            f"peer_mismatch={ev.get('peer_mismatch',False)} "
+            f"retrieval_score={ev.get('retrieval_score',0)}\n"
+        )
+
     scores   = pattern_result.get("scores", {})
     verdict  = pattern_result.get("verdict", "NORMAL")
     signals  = pattern_result.get("signals", {})
@@ -36,7 +53,7 @@ CPU={metrics.cpu_percent}%, 메모리={metrics.memory_percent}%
 {gpu_text}
 외부연결={metrics.external_packet_count}건, Net ↑{metrics.outbound_mb}MB/5s ↓{metrics.inbound_mb}MB/5s
 {global_hw_text}
-
+{retrieval_text}
 [규칙 기반 스코어링 결과]
 verdict={verdict} (NORMAL|OBSERVE|SUSPICIOUS|HIGH_RISK), 최종점수={scores.get('final',0):.1f}
 (GPU채굴:{scores.get('gpu_mining',0)} CPU채굴:{scores.get('cpu_mining',0)} 스텔스:{scores.get('stealth',0)} 유출:{scores.get('exfil',0)} 프로세스:{scores.get('process',0)})

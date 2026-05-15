@@ -50,7 +50,7 @@ public class MetricsService {
 
     /**
      * Extracts overall GPU load percent from the raw gpu sub-map.
-     * Real Agent (agent_core.collector.gpu.GpuCollector) ships {@code load_percent}
+     * Real Agent (client_core.collector.gpu.GpuCollector) ships {@code load_percent}
      * as the GPUtil-derived 0-100 load reading; {@code sm_percent} is a fallback
      * synonym some experimental builds emit. Returns null when neither is present
      * or the value is not numeric.

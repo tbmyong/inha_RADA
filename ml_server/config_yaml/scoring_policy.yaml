@@ -1,0 +1,50 @@
+version: "scoring-v0.5.0"
+
+thresholds:
+  observe: 5
+  suspicious: 9
+  high_risk: 14
+
+limits:
+  ml_score_cap: 5
+  max_context_discount: -4
+  danger_override_max_discount: -1
+
+scores:
+  # process category
+  known_miner: 10
+  persistent_miner: 3
+  temp_exec: 1
+  appdata_exec: 1
+  # episode
+  dos_spike: 5
+  persistent_ext: 2
+  # resource
+  cpu_high: 1
+  cpu_flat: 1
+  mem_high: 1
+  mem_critical: 1
+  gpu_high: 1
+  top_cpu_norm_high: 2
+  top_cpu_norm_mid: 1
+  # network
+  net_out_sustained: 2
+  outbound_spike: 2
+  unique_remote_ip_high: 2
+  unique_remote_ip_mid: 1
+  new_remote_ip_burst: 1
+  spike_with_companion: 1
+  # correlation
+  cpu_plus_net: 2
+  disk_write_net_out: 5
+  unknown_proc_net: 5
+  appdata_net: 6
+  mining_known: 10
+  mining_pool_only: 8
+
+context_discounts:
+  startup: -1
+  security_scan: -2
+  maintenance_update: -2
+  lab_agent: -1
+  class_or_free: -1

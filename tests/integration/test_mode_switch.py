@@ -4,8 +4,8 @@ from __future__ import annotations
 import pytest
 import requests
 
-from agent_core.config.loader import AgentConfig, load_config
-from agent_core.sender import MetricsSender
+from client_core.config.loader import ClientConfig, load_config
+from client_core.sender import MetricsSender
 
 
 class _FakeResp:
@@ -30,7 +30,7 @@ def capture_post(monkeypatch):
 
 
 def test_mode_mlserver_routes_to_analyze(capture_post):
-    cfg = AgentConfig(
+    cfg = ClientConfig(
         mode="mlserver",
         ml_server_url="http://ml:8000/analyze",
         spring_boot_url="http://sb:8080/api/metrics",
@@ -42,7 +42,7 @@ def test_mode_mlserver_routes_to_analyze(capture_post):
 
 
 def test_mode_springboot_routes_to_api_metrics(capture_post):
-    cfg = AgentConfig(
+    cfg = ClientConfig(
         mode="springboot",
         ml_server_url="http://ml:8000/analyze",
         spring_boot_url="http://sb:8080/api/metrics",

@@ -1,6 +1,6 @@
-"""agent_core.detector.boxplot 테스트."""
-from agent_core.detector import BoxplotDetector
-from agent_core.window import SlidingWindow
+"""client_core.detector.boxplot 테스트."""
+from client_core.detector import BoxplotDetector
+from client_core.window import SlidingWindow
 
 
 def _push(window, cpu_seq, mem_seq):

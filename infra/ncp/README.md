@@ -200,9 +200,11 @@ ML 서버 버전별로 score 키 위치가 다르므로, Grafana 의 anomaly_sco
 }
 ```
 
-#### `score_breakdown` 8키 의미
+#### `score_breakdown` 9키 의미 (7단계 확정)
 
-1단계(P0)에서는 일부 키가 0 placeholder 일 수 있으며, B가 3단계에서 실제 값을 채운다.
+7단계(retrieval-augmented evidence layer) 라운드에서 `retrieval` 키가 추가되어
+총 9키 구조로 확정되었다. `anomaly_history.scores` JSONB 컬럼 변경 없이 키만 추가되었으며,
+Grafana 패널은 `COALESCE(... ,0)` 로 미존재 레거시 행에 대해서도 안전 표시된다.
 
 | key | 의미 | 비고 |
 |-----|------|------|
@@ -212,10 +214,11 @@ ML 서버 버전별로 score 키 위치가 다르므로, Grafana 의 anomaly_sco
 | episode | 연속 이상 에피소드 가중치 | 시계열 누적 |
 | correlation | 자원-네트워크-프로세스 상관 점수 | 룰 |
 | ml | FastAPI ML 모델 부분 점수 | 모델 의존 |
+| retrieval | retrieval-augmented evidence 기반 부분 점수 (7단계 신규) | top-k 유사 세그먼트 |
 | context_discount | 학습/회의 시간대 등 컨텍스트 감산값 (음수 가능) | 룰 |
 | final | 최종 합산 점수 (Grafana anomaly_score 표시 기준) | severity 산출에 사용 |
 
-Grafana `rada-pc-detail` 패널 id=7 은 위 8키를 다음 SQL 로 추출한다 (NULL 은 0 placeholder):
+Grafana `rada-pc-detail` 패널 id=7 은 위 키들을 다음 SQL 로 추출한다 (NULL 은 0 placeholder):
 
 ```sql
 SELECT
@@ -225,6 +228,7 @@ SELECT
   COALESCE((scores->'score_breakdown'->>'episode')::float, 0)          AS episode,
   COALESCE((scores->'score_breakdown'->>'correlation')::float, 0)      AS correlation,
   COALESCE((scores->'score_breakdown'->>'ml')::float, 0)               AS ml,
+  COALESCE((scores->'score_breakdown'->>'retrieval')::float, 0)        AS retrieval,
   COALESCE((scores->'score_breakdown'->>'context_discount')::float, 0) AS context_discount,
   COALESCE((scores->'score_breakdown'->>'final')::float, 0)            AS final
 FROM anomaly_history
@@ -263,6 +267,67 @@ JSONB 페이로드 내 `hw_degradation` 키 또는 별도 컬럼으로 노출될
 - `anomaly_history`, `ai_judgment_history` 의 보존 기간은 V5 시점에는 미정 — 향후 검토.
 - 인프라 측 cron / pg_partman 은 사용하지 않는다.
 
+## Configuration 정책 파일 (4단계)
+
+ML 서버의 스코어링 규칙과 프로세스 allowlist 는 코드가 아니라 YAML 정책 파일로
+외부화된다. B팀 4단계 산출물이며, 운영 측면에서 다음 사항을 따른다.
+
+### 파일 위치 및 내용 요약
+
+| 파일 | 경로 | 내용 요약 |
+|------|------|-----------|
+| `scoring_policy.yaml` | `ml_server/config_yaml/scoring_policy.yaml` | EDR 스코어링 가중치 / 카테고리별 임계값 / 컨텍스트 감산 계수 / verdict 경계값 / `policy_version` 메타 |
+| `allowlist.yaml` | `ml_server/config_yaml/allowlist.yaml` | 학습/회의 등 정상 컨텍스트 프로세스 이름 화이트리스트 (감산 트리거) |
+
+### 디렉토리 이름이 `config_yaml/` 인 이유
+
+작업지시서 §4.3 권장 경로는 `ml_server/config/` 였으나, ML 서버 코드 트리에 이미
+`ml_server/config.py` (단일 파일) 이 존재하여 **Python import / 패키지 모호성** 을
+회피하기 위해 B팀 합의로 `config_yaml/` 디렉토리명을 채택했다. 정책 파일과 기존
+`config.py` 는 서로 다른 책임을 가지며 양쪽 모두 유지된다.
+
+### 환경변수 override 절차
+
+기본 경로(`/opt/rada/ml_server/config_yaml`) 이외의 위치에서 정책을 로딩하려면
+`RADA_POLICY_DIR` 환경변수를 사용한다.
+
+```
+# 임시 테스트 (수동 실행)
+sudo RADA_POLICY_DIR=/tmp/rada-policy-test \
+     /opt/rada/venv/bin/uvicorn ml_server:app --host 127.0.0.1 --port 8001
+
+# 영구 적용 (systemd) — 본 저장소의 rada-fastapi.service 에 이미 기본값 주입됨
+#   Environment="RADA_POLICY_DIR=/opt/rada/ml_server/config_yaml"
+# 다른 경로를 쓰려면 override drop-in 으로만 변경한다:
+sudo systemctl edit rada-fastapi
+# → [Service] Environment="RADA_POLICY_DIR=/opt/rada/policies/v0.5"
+```
+
+### 정책 변경 → 서버 재시작 필요
+
+YAML 파일은 **프로세스 시작 시점에만 로딩** 되며 핫리로드되지 않는다. 정책 변경
+후에는 반드시 다음 명령으로 재시작한다.
+
+```
+sudo systemctl restart rada-fastapi
+```
+
+또한 정책 파일이 잘못된 YAML 이거나 스키마가 깨진 경우 **서버 시작이 실패한다
+(fail-fast)**. `journalctl -u rada-fastapi -n 100` 로 파싱 에러 위치를 확인한 뒤
+원본 정책으로 롤백 → 재시작 한다.
+
+### `policy_version` 운영 절차
+
+`scoring_policy.yaml` 최상단의 `policy_version: scoring-v0.5.0` 키는 ML 서버가
+DB `anomaly_history.scores.policy_version` JSONB 필드에 그대로 기록한다. 따라서
+운영상 다음 절차를 권장한다.
+
+1. 정책 변경 시 `policy_version` 값을 **반드시 함께 갱신** 한다 (e.g. `scoring-v0.4.1`).
+2. 변경 커밋에 Git tag 를 부착한다 (e.g. `git tag policy-scoring-v0.4.1`).
+3. 배포 후 `anomaly_history.scores->>'policy_version'` 으로 어느 정책에서 산출된
+   점수인지 추적 가능하다 (회귀 분석 / 사후 검증 시 사용).
+4. tag 와 DB `policy_version` 값이 일치하지 않으면 배포 누락을 의심한다.
+
 ## 의존성 / 한계
 
 - 본 인프라 코드는 **DDL 을 수행하지 않는다.** (`CREATE TABLE`, `ALTER`, 인덱스 정의 없음.)
@@ -272,3 +337,4 @@ JSONB 페이로드 내 `hw_degradation` 키 또는 별도 컬럼으로 노출될
 - 단일 서버 구성이므로 가용성/백업은 별도로 설계해야 한다 (NCP Object Storage 로
   `pg_dump` 일일 업로드 권장).
 - Grafana 초기 admin 비밀번호(`grafana.ini`)는 최초 로그인 시 즉시 변경할 것.
+- `ml_server/config_yaml/` 디렉토리 존재 및 YAML 유효성은 B팀 4단계 산출물에 의존한다.

@@ -1,8 +1,8 @@
-"""Unit tests for agent_core.tools.collect_data."""
+"""Unit tests for client_core.tools.collect_data."""
 
 import pytest
 
-from agent_core.tools.collect_data import (
+from client_core.tools.collect_data import (
     COLLECTOR_VERSION,
     CSV_FIELDS,
     CsvMetricsCollector,
