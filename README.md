@@ -1,7 +1,5 @@
 # inha_RADA
 
-컴퓨터공학 종합설계
-
 RADA is a PC resource monitoring and anomaly detection project for lab PCs.
 It collects local machine metrics, stores them through a Spring Boot server,
 analyzes anomalies through a FastAPI ML server, and visualizes operational
