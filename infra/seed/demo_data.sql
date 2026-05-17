@@ -29,6 +29,22 @@ SELECT
   true
 FROM generate_series(1, 40) AS g;
 
+-- ---------------------------------------------------------- pc-smoke (dev) ---
+-- Smoke-test PC consumed by tools/anomaly_trigger.py.
+-- The api_key column stores SHA-256(pepper + ":" + raw_key) lowercase hex.
+-- Raw key is 'smoke-key', pepper is the dev default 'dev_pepper_change_me'.
+-- If you rotate the pepper in .env this hash must be regenerated.
+INSERT INTO pc_info (pc_id, hostname, api_key, is_active, registered_at, last_seen_at, location, gpu_available)
+VALUES (
+  'pc-smoke', 'smoke-host',
+  'a94937b42b839452c176d00200ffd938536db499ad2ce273dfd1e2c1924ed0b3',
+  true, NOW() - INTERVAL '30 days', NOW(), 'LAB-01', true
+)
+ON CONFLICT (pc_id) DO UPDATE
+SET api_key = EXCLUDED.api_key,
+    is_active = true,
+    last_seen_at = NOW();
+
 -- --------------------------------------------------------- metrics_history ---
 -- 1 row / minute / PC for the last 60 minutes. CPU profile depends on PC index:
 --   PC-07, PC-13 : mining-suspect (CPU 80-95, GPU 85-99)
