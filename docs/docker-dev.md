@@ -8,7 +8,7 @@
 |--------|------|---------|------|
 | postgres | 5432 | rada-postgres | named volume `rada_pgdata` |
 | ml-server | 8000 | rada-ml | FastAPI, `RADA_POLICY_DIR=/app/ml_server/config_yaml` |
-| spring-server | 8080 | rada-spring | Flyway V1~V5 자동 실행, profile=`docker` |
+| spring-server | 8080 | rada-spring | Flyway V1~V7 자동 실행, profile=`docker` |
 | grafana | 3000 | rada-grafana | 대시보드 + 데이터소스 provisioning 자동 로드 |
 
 > Client(`client.py`)는 호스트 OS에서 네이티브로 실행해 `http://localhost:8080`으로 메트릭을 전송합니다.
@@ -70,4 +70,20 @@ docker compose config
 - 본 compose는 프로젝트 루트의 `docker-compose.yml` 하나로 완결됩니다.
 - `infra/ncp/systemd/*.service`, `infra/ncp/scripts/*` 는 수정하지 않았습니다.
 - Grafana 데이터소스 provisioning 도 `infra/grafana/provisioning/datasources/postgres.yaml`(NCP용, `127.0.0.1` + `grafana_reader`) 은 그대로 두고, 컨테이너에는 `infra/grafana/provisioning-docker/datasources/postgres.yaml`(`postgres:5432`)을 별도 마운트합니다. UID 는 `rada_pg` 로 동일해 대시보드를 공유합니다.
-- DB 스키마는 Flyway V1~V5 그대로 적용됩니다 — 추가 마이그레이션 없음.
+- DB 스키마는 Flyway V1~V7 까지 적용됩니다. V6 는 `rada` role 에 한정된 search_path 설정이었고, V7 은 `${db_user}` / `${db_schema}` placeholder 로 매개변수화된 동일 설정이므로 운영자가 `POSTGRES_USER` / `DB_SCHEMA` 를 바꿔도 그대로 동작합니다 (placeholder 는 `application.yml` 의 `spring.flyway.placeholders` 에 매핑됨).
+
+## 시드 데이터 + 스모크 테스트
+
+```powershell
+# 1) 데모 시드 (PC-01~PC-40 + pc-smoke) 적용
+Get-Content infra\seed\demo_data.sql -Raw `
+  | docker compose exec -T postgres psql -U rada -d pc_monitor
+
+# 2) anomaly 트리거 (15회 채굴 시나리오 전송)
+python tools\anomaly_trigger.py
+```
+
+`pc-smoke` 의 `api_key` 컬럼은 `SHA-256(pepper + ":" + "smoke-key")` 해시값을
+저장하므로 `.env` 의 `API_KEY_PEPPER` 를 변경하면 해당 줄을 재해시해야 합니다
+(dev 기본 pepper: `dev_pepper_change_me`). 15/15 OK 응답을 받으면 메인 서버 →
+ML 서버 → `anomaly_history` 까지 통합 흐름이 검증된 상태입니다.
