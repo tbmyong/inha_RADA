@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
+import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 import java.util.Optional;
 
@@ -34,6 +35,11 @@ public class MlForwardService {
                     .bodyToMono(MlResponse.class)
                     .block();
             return Optional.ofNullable(resp);
+        } catch (WebClientResponseException e) {
+            // Log the response body so 422 / 500 root causes are visible.
+            log.warn("ML forward failed pcId={} status={} body={}",
+                     pcId, e.getStatusCode(), e.getResponseBodyAsString());
+            return Optional.empty();
         } catch (Exception e) {
             log.warn("ML forward failed pcId={} err={}", pcId, e.getMessage());
             return Optional.empty();
