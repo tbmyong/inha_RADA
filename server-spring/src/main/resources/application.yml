@@ -21,6 +21,8 @@ spring:
     validate-on-migrate: true
     placeholders:
       api_key_pepper: ${API_KEY_PEPPER}
+      db_user: ${DB_USER:rada}
+      db_schema: ${DB_SCHEMA:pc_monitor}
 
   jpa:
     hibernate:
