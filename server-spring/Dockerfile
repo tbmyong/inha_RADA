@@ -15,6 +15,12 @@ RUN chmod +x gradlew \
 FROM eclipse-temurin:17-jre-jammy
 WORKDIR /app
 
+# curl is required by the docker-compose healthcheck (replaces wget which the
+# base image does not ship).
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends curl \
+ && rm -rf /var/lib/apt/lists/*
+
 ENV JAVA_OPTS="-Xms256m -Xmx512m -Dfile.encoding=UTF-8 -Duser.timezone=Asia/Seoul" \
     SPRING_PROFILES_ACTIVE=docker
 
