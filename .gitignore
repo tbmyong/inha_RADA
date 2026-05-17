@@ -32,3 +32,6 @@ Thumbs.db
 # LocalQueue persistence files
 .agent_queue.jsonl
 .agent_queue.jsonl.tmp
+
+# Temporary debug helpers under tools/ (e.g. tools/_dbg_*.py).
+tools/_dbg_*.py
