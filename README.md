@@ -46,6 +46,17 @@ python tools\anomaly_trigger.py
 `SHA-256(API_KEY_PEPPER + ":" + raw_key)` 결과가 저장된다. dev pepper(`dev_pepper_change_me`)
 이외의 값을 쓰면 시드의 해시값을 재계산해야 한다.
 
+### 시드 PC 구분 — 라이브 인증은 `pc-smoke` 만
+
+| PC | 용도 | 인증 동작 |
+|----|------|-----------|
+| `PC-01` ~ `PC-40` | **Grafana 데모/시연 데이터 전용** — hexmap 격자, Top 5, anomaly 분포 패널이 사용. `api_key` 컬럼은 `md5('demo-key-' \|\| N)` 형식이라 Spring 의 SHA-256 pepper 흐름과 매칭되지 않음 | `/api/metrics` 호출 시 401 |
+| `pc-smoke`     | **라이브 agent 인증 + anomaly 트리거 검증 전용** | `X-API-Key: smoke-key` 로 정상 동작 |
+
+따라서 `tools/anomaly_trigger.py` 같은 라이브 도구는 항상 `pc-smoke` 를 사용한다.
+실제 학생 PC 40대를 운영 등록할 때는 `pc_info.api_key` 컬럼을 동일한 SHA-256 해시 형식으로
+넣어야 한다 (별도 등록 스크립트 또는 향후 admin API).
+
 ## 설정 (환경변수)
 
 | 변수 | 용도 |

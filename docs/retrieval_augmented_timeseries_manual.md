@@ -149,7 +149,7 @@ def build_embedding(segment: dict) -> list[float]:
 - 모든 계산 결과는 finite number여야 한다.
 - `NaN`, `inf`, `-inf`는 `0.0`으로 치환한다.
 
-### 4.3 `ml_server/storage/retrieval_store.py`
+### 4.3 `ml_server/retrieval/retrieval_store.py`
 
 역할:
 
