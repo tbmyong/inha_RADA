@@ -206,7 +206,7 @@ def clear_pc(pc_id: str) -> bool:
 신규 파일:
 
 ```text
-ml_server/scorer/retrieval_evidence.py
+ml_server/retrieval/retrieval_evidence.py
 ```
 
 역할:

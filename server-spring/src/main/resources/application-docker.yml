@@ -8,3 +8,12 @@ spring:
 ml:
   server:
     base-url: ${ML_SERVER_URL:http://ml-server:8000}
+
+# Local dev only — allow Flyway to repair() before migrate() so previously
+# applied migrations (notably the original hard-coded V6) can be rewritten
+# with placeholders without forcing a database volume reset. Production
+# (default profile) leaves this `false` so checksum drift is investigated,
+# not silently auto-healed.
+rada:
+  flyway:
+    auto-repair: true

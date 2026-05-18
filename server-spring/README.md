@@ -8,25 +8,11 @@
 - Unix/macOS: `./gradlew test`
 - Windows:   `gradlew.bat test`
 
-## Gradle Wrapper jar (manual step)
+## Gradle Wrapper
 
-This repository ships `gradlew`, `gradlew.bat`, and
-`gradle/wrapper/gradle-wrapper.properties`, but **`gradle/wrapper/gradle-wrapper.jar`
-is not committed** because the offline build environment used to scaffold this
-project could not download it from either GitHub or Maven Central.
-
-Generate the jar once locally with a system Gradle 8.5 install:
-
-```
-gradle wrapper --gradle-version 8.5
-```
-
-Or download it directly:
-
-- GitHub: <https://raw.githubusercontent.com/gradle/gradle/v8.5.0/gradle/wrapper/gradle-wrapper.jar>
-- Place at: `gradle/wrapper/gradle-wrapper.jar`
-
-After the jar is in place, `./gradlew` / `gradlew.bat` work as normal.
+`gradle/wrapper/gradle-wrapper.jar` is committed in this repo, so
+`./gradlew` / `gradlew.bat` work right after `git clone` without any
+manual download. No extra step needed.
 
 ## Database Migrations (Flyway)
 

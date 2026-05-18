@@ -7,11 +7,17 @@ Wants=network-online.target
 Type=simple
 User=rada
 Group=rada
-WorkingDirectory=/opt/rada/ml_server
+# NOTE: WorkingDirectory must be /opt/rada (repo root), NOT /opt/rada/ml_server.
+# uvicorn does `import ml_server.main` (or `import ml_server`); Python resolves
+# that against the CWD. If CWD is /opt/rada/ml_server, there is no parent
+# directory containing the `ml_server` package on sys.path, and the import
+# fails with ModuleNotFoundError. Keeping CWD at the project root makes the
+# package importable.
+WorkingDirectory=/opt/rada
 EnvironmentFile=-/etc/rada/fastapi.env
 Environment="RADA_POLICY_DIR=/opt/rada/ml_server/config_yaml"
 # 외부 노출 금지 — 반드시 127.0.0.1 바인딩
-ExecStart=/opt/rada/venv/bin/uvicorn ml_server:app \
+ExecStart=/opt/rada/venv/bin/uvicorn ml_server.main:app \
   --host 127.0.0.1 \
   --port 8000 \
   --workers 1 \

@@ -47,10 +47,11 @@ BEGIN
   END IF;
 END
 \$\$;
-
-SELECT 'create database' WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DB_NAME}')\gexec
 SQL
 
+# DATABASE 생성은 별도 세션으로. 위의 SELECT 'create database' ... \gexec 형태는
+# fresh DB 에서 psql 이 literal string 'create database' 를 실행하려다 문법 오류로
+# 종료되므로 제거. 아래의 format(...) 빌더가 올바른 CREATE DATABASE 문을 생성한다.
 sudo -u postgres psql -v ON_ERROR_STOP=1 <<SQL
 SELECT format('CREATE DATABASE %I OWNER %I', '${DB_NAME}', '${DB_OWNER}')
 WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = '${DB_NAME}')\gexec

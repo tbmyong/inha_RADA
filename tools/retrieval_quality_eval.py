@@ -258,7 +258,7 @@ def main():
             "큰 스케일 feature (vram_mb, packet_count) 의 raw Euclidean 거리 dominance 가 "
             "log1p + min-max 정규화로 사라지고, cosine 이 방향(패턴) 중심 검색을 한 결과. "
             "또한 cosine 의 거리 범위가 [0, 2] 로 고정되어 score breakdown 의 임계값 "
-            "(_NEAR_DISTANCE_COSINE=0.35) 을 도메인 무관하게 안정적으로 적용할 수 있다. "
+            "(_NEAR_DISTANCE_COSINE=0.05, env RETRIEVAL_NEAR_COSINE 로 조정) 을 도메인 무관하게 안정적으로 적용할 수 있다. "
             "운영 기본값으로 cosine + normalize 채택. 회귀 안전을 위해 "
             "`RETRIEVAL_DISTANCE_MODE=euclidean`, `RETRIEVAL_NORMALIZE=0` 으로 기존 동작 "
             "복원 가능."
