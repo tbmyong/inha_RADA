@@ -151,6 +151,10 @@ def analyze_pattern(metrics: MetricsRequest, history: deque, slot: str,
         except (TypeError, ValueError):
             retrieval_score = 0
     adjusted_score = adjusted_score + retrieval_score
+    # R2: retrieval/context 감점이 score 를 음수로 끌어내려 moving average 를
+    # 오염시키는 것을 방지 — adjusted_score 의 하한은 0. (raw_score 는 영향 없음)
+    if adjusted_score < 0:
+        adjusted_score = 0
 
     # 누적 가중 평균 (최근 5건)
     final_score = score_history_store.append_rule_score(

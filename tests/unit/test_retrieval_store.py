@@ -25,12 +25,17 @@ def test_search_empty_returns_empty():
 
 
 def test_topk_sorted_ascending_by_distance():
-    RS.add_segment(_seg("p-near", "class", "T1"), [1.0] * 80, "NORMAL", 0.0)
-    RS.add_segment(_seg("p-far",  "class", "T2"), [9.0] * 80, "NORMAL", 0.0)
-    RS.add_segment(_seg("p-mid",  "class", "T3"), [3.0] * 80, "NORMAL", 0.0)
+    # cosine 모드 기준: 같은 방향일수록 가깝다. 쿼리 = [1,0,...,0].
+    # p-near: 같은 방향 강한 1축, p-mid: 1축 + 약간 2축, p-far: 거의 2축.
+    near = [1.0] + [0.0] * 79
+    mid = [1.0, 0.5] + [0.0] * 78
+    far = [0.1, 1.0] + [0.0] * 78
+    RS.add_segment(_seg("p-near", "class", "T1"), near, "NORMAL", 0.0)
+    RS.add_segment(_seg("p-far",  "class", "T2"), far, "NORMAL", 0.0)
+    RS.add_segment(_seg("p-mid",  "class", "T3"), mid, "NORMAL", 0.0)
 
     q = _seg("pc-q", "class", "TQ")
-    res = RS.search_similar(q, [1.0] * 80, top_k=3)
+    res = RS.search_similar(q, near, top_k=3)
     assert [r["pc_id"] for r in res] == ["p-near", "p-mid", "p-far"]
     dists = [r["distance"] for r in res]
     assert dists == sorted(dists)

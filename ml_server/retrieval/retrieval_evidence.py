@@ -4,14 +4,32 @@ retrieved cases 요약 + peer mismatch 계산 + retrieval score 산출.
 점수 범위: -2 <= retrieval_score <= 5
 """
 from __future__ import annotations
+import os
 from typing import Dict, List, Optional
 
 
 _RETRIEVAL_SCORE_MIN = -2
 _RETRIEVAL_SCORE_MAX = 5
 
-# embedding 거리 임계 — 이 값보다 작으면 "정말 유사" 로 간주
-_NEAR_DISTANCE = 50.0
+# embedding 거리 임계 — 이 값보다 작으면 "정말 유사" 로 간주.
+# R2: distance mode 별 임계가 다르다. cosine 은 0~2, euclidean 은 0~∞.
+#   - cosine:    0.05 (1-cos ≤ 0.05  ⇒ cos ≥ 0.95 정도여야 "정말 동일 패턴")
+#                정상 운영에서 같은 시나리오 segment 끼리는 ~0.001 수준,
+#                다른 시나리오로 가면 ~0.04 이상으로 벌어진다 (eval 결과 참고).
+#   - euclidean: 50.0 (기존 raw 통계 임계 유지)
+_NEAR_DISTANCE_COSINE = float(os.environ.get("RETRIEVAL_NEAR_COSINE", "0.05"))
+_NEAR_DISTANCE_EUCLID = float(os.environ.get("RETRIEVAL_NEAR_EUCLID", "50.0"))
+
+
+def _near_threshold() -> float:
+    mode = os.environ.get("RETRIEVAL_DISTANCE_MODE", "cosine").strip().lower()
+    if mode == "euclidean":
+        return _NEAR_DISTANCE_EUCLID
+    return _NEAR_DISTANCE_COSINE
+
+
+# 기존 export 호환 (테스트가 import 할 수도 있음 — 현재는 없음)
+_NEAR_DISTANCE = _NEAR_DISTANCE_COSINE
 
 
 def _empty_evidence() -> dict:
@@ -90,12 +108,32 @@ def build_retrieval_evidence(
     score = 0
     total = len(cases)
     # 유사 NORMAL 다수 — 단, 실제로 "가까운" 사례여야 한다 (distance 임계)
+    near_th = _near_threshold()
     near_normal = sum(
         1 for c in cases
         if c.get("verdict") == "NORMAL"
-        and float(c.get("distance", 1e9) or 1e9) < _NEAR_DISTANCE
+        and float(c.get("distance", 1e9) or 1e9) < near_th
     )
-    if total > 0 and near_normal >= max(2, (total + 1) // 2):
+    # R2: cosine 모드에선 normal 들과 방향이 비슷한 spike 도 distance 가 작게
+     # 잡힐 수 있다. "현재 segment 가 명백히 spike 상태" 면 NORMAL discount 를
+    # 적용하지 않는다 (회귀 안전).
+    snaps_for_gate = (current_segment or {}).get("snapshots") or []
+    last_snap = snaps_for_gate[-1] if snaps_for_gate and isinstance(snaps_for_gate[-1], dict) else {}
+    try:
+        _cur_cpu = float(last_snap.get("cpu_percent") or 0.0)
+    except (TypeError, ValueError):
+        _cur_cpu = 0.0
+    try:
+        _cur_gpu = float(last_snap.get("gpu_percent") or 0.0)
+    except (TypeError, ValueError):
+        _cur_gpu = 0.0
+    _is_spiking = (_cur_cpu >= 70.0) or (_cur_gpu >= 70.0)
+
+    if (
+        total > 0
+        and near_normal >= max(2, (total + 1) // 2)
+        and not _is_spiking
+    ):
         score -= 2
     # 유사 HIGH_RISK 존재
     if counts["HIGH_RISK"] > 0:

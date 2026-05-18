@@ -1,6 +1,14 @@
-"""In-memory retrieval store — slot 별 segment + embedding 누적."""
+"""In-memory retrieval store — slot 별 segment + embedding 누적.
+
+R2: distance 함수에 cosine 모드 추가. RETRIEVAL_DISTANCE_MODE 로 전환.
+  - cosine  (기본): 1 - cos(a,b) ∈ [0, 2]. 스케일 무관.
+  - euclidean    : √Σ(a_i - b_i)^2 ∈ [0, ∞). 기존 동작 유지.
+
+기존 search_similar 의 응답 형식은 동일. distance 값 의미만 바뀜.
+"""
 from __future__ import annotations
 import math
+import os
 from collections import deque
 from typing import Dict, List, Deque
 
@@ -50,6 +58,44 @@ def _euclidean(a: List[float], b: List[float]) -> float:
     return math.sqrt(s)
 
 
+def _cosine_distance(a: List[float], b: List[float]) -> float:
+    """1 - cos(a, b). 한쪽이 0벡터면 2.0 (최대 거리) 반환."""
+    n = min(len(a), len(b))
+    if n == 0:
+        return 2.0
+    dot = 0.0
+    na = 0.0
+    nb = 0.0
+    for i in range(n):
+        ai = a[i]
+        bi = b[i]
+        dot += ai * bi
+        na += ai * ai
+        nb += bi * bi
+    if na <= 0.0 or nb <= 0.0:
+        return 2.0
+    cos = dot / math.sqrt(na * nb)
+    # numerical clamp
+    if cos > 1.0:
+        cos = 1.0
+    elif cos < -1.0:
+        cos = -1.0
+    return 1.0 - cos
+
+
+def _distance_mode() -> str:
+    m = os.environ.get("RETRIEVAL_DISTANCE_MODE", "cosine").strip().lower()
+    if m not in ("cosine", "euclidean"):
+        m = "cosine"
+    return m
+
+
+def _distance(a: List[float], b: List[float]) -> float:
+    if _distance_mode() == "euclidean":
+        return _euclidean(a, b)
+    return _cosine_distance(a, b)
+
+
 def search_similar(segment: dict, embedding: List[float],
                    top_k: int = 3) -> List[dict]:
     if not segment or not embedding:
@@ -62,7 +108,7 @@ def search_similar(segment: dict, embedding: List[float],
     for past in pool:
         if past.get("segment_id") == self_id and past.get("end_ts") == self_end:
             continue
-        dist = _euclidean(embedding, past.get("embedding") or [])
+        dist = _distance(embedding, past.get("embedding") or [])
         scored.append((dist, past))
     scored.sort(key=lambda x: x[0])
     results = []

@@ -20,10 +20,11 @@ def test_empty_segment_returns_unavailable():
 
 
 def test_normal_majority_lowers_score():
+    # R2: cosine 모드 기본 임계 (_NEAR_DISTANCE_COSINE=0.05) 보다 작은 값이어야 "near".
     cases = [
-        {"verdict": "NORMAL", "distance": 0.1},
-        {"verdict": "NORMAL", "distance": 0.2},
-        {"verdict": "NORMAL", "distance": 0.3},
+        {"verdict": "NORMAL", "distance": 0.01},
+        {"verdict": "NORMAL", "distance": 0.02},
+        {"verdict": "NORMAL", "distance": 0.03},
     ]
     ev = build_retrieval_evidence(_seg(cpu=10.0), cases, {})
     # near-distance NORMAL 다수 → -2
