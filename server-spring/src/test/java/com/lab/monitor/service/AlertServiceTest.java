@@ -281,6 +281,88 @@ class AlertServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void retrieval_evidence_merged_into_scores_jsonb_when_present() {
+        Map<String, Object> topK0 = Map.of(
+                "segment_id", "seg-1",
+                "pc_id", "pc-x",
+                "distance", 0.42,
+                "verdict", "HIGH_RISK");
+        Map<String, Object> evidence = Map.of(
+                "available", true,
+                "retrieval_score", 3,
+                "peer_mismatch", true,
+                "novelty", false,
+                "top_k", List.of(topK0));
+        Map<String, Object> scores = Map.of(
+                "cpu", 0.99,
+                "score_breakdown", Map.of("retrieval", 3));
+
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("HIGH")
+                .verdict("DANGEROUS")
+                .scores(scores)
+                .retrievalEvidence(evidence)
+                .build();
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(101L); return ah; });
+
+        service.handle(resp, "pc-re");
+
+        ArgumentCaptor<AnomalyHistory> a = ArgumentCaptor.forClass(AnomalyHistory.class);
+        verify(alertRepository).save(a.capture());
+        Map<String, Object> saved = a.getValue().getScores();
+        assertThat(saved).containsKey("retrieval_evidence");
+        assertThat(saved).containsKey("score_breakdown");
+        Map<String, Object> savedEvidence = (Map<String, Object>) saved.get("retrieval_evidence");
+        assertThat(savedEvidence).containsEntry("retrieval_score", 3);
+        assertThat(savedEvidence).containsEntry("peer_mismatch", true);
+        List<Map<String, Object>> savedTopK = (List<Map<String, Object>>) savedEvidence.get("top_k");
+        assertThat(savedTopK).hasSize(1);
+        assertThat(savedTopK.get(0)).containsEntry("segment_id", "seg-1");
+        assertThat(savedTopK.get(0)).containsEntry("distance", 0.42);
+    }
+
+    @Test
+    void retrieval_evidence_absent_leaves_scores_untouched() {
+        Map<String, Object> scores = Map.of("cpu", 0.5);
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("HIGH")
+                .verdict("DANGEROUS")
+                .scores(scores)
+                .build();
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(102L); return ah; });
+
+        service.handle(resp, "pc-re-none");
+
+        ArgumentCaptor<AnomalyHistory> a = ArgumentCaptor.forClass(AnomalyHistory.class);
+        verify(alertRepository).save(a.capture());
+        Map<String, Object> saved = a.getValue().getScores();
+        assertThat(saved).doesNotContainKey("retrieval_evidence");
+        assertThat(saved).containsEntry("cpu", 0.5);
+    }
+
+    @Test
+    void retrieval_evidence_empty_leaves_scores_untouched() {
+        Map<String, Object> scores = Map.of("cpu", 0.5);
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("HIGH")
+                .verdict("DANGEROUS")
+                .scores(scores)
+                .retrievalEvidence(Map.of())
+                .build();
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(103L); return ah; });
+
+        service.handle(resp, "pc-re-empty");
+
+        ArgumentCaptor<AnomalyHistory> a = ArgumentCaptor.forClass(AnomalyHistory.class);
+        verify(alertRepository).save(a.capture());
+        assertThat(a.getValue().getScores()).doesNotContainKey("retrieval_evidence");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void score_breakdown_final_can_be_negative_after_context_discount() {
         Map<String, Object> breakdown = Map.of(
                 "resource", 0.10,

@@ -90,6 +90,40 @@ class MlResponseContractTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void retrieval_evidence_block_deserializes_into_map() throws IOException {
+        String json = "{\"overall_severity\":\"HIGH\",\"verdict\":\"DANGEROUS\"," +
+                "\"retrieval_evidence\":{" +
+                "\"available\":true," +
+                "\"retrieval_score\":3," +
+                "\"peer_mismatch\":true," +
+                "\"novelty\":false," +
+                "\"similar_high_risk_count\":2," +
+                "\"top_k\":[" +
+                "  {\"segment_id\":\"seg-1\",\"pc_id\":\"pc-x\",\"distance\":0.42," +
+                "\"verdict\":\"HIGH_RISK\",\"timestamp\":\"2026-05-18T00:00:00Z\"}," +
+                "  {\"segment_id\":\"seg-2\",\"pc_id\":\"pc-y\",\"distance\":12.0," +
+                "\"verdict\":\"OBSERVE\"}" +
+                "]}}";
+        MlResponse mapped = mapper.readValue(json, MlResponse.class);
+        assertThat(mapped.getRetrievalEvidence()).isNotNull();
+        assertThat(mapped.getRetrievalEvidence()).containsEntry("retrieval_score", 3);
+        assertThat(mapped.getRetrievalEvidence()).containsEntry("peer_mismatch", true);
+        java.util.List<java.util.Map<String, Object>> topK =
+                (java.util.List<java.util.Map<String, Object>>) mapped.getRetrievalEvidence().get("top_k");
+        assertThat(topK).hasSize(2);
+        assertThat(topK.get(0)).containsEntry("segment_id", "seg-1");
+        assertThat(topK.get(0)).containsEntry("verdict", "HIGH_RISK");
+    }
+
+    @Test
+    void retrieval_evidence_absent_is_null() throws IOException {
+        String json = "{\"overall_severity\":\"NORMAL\",\"verdict\":\"SAFE\"}";
+        MlResponse mapped = mapper.readValue(json, MlResponse.class);
+        assertThat(mapped.getRetrievalEvidence()).isNull();
+    }
+
+    @Test
     void unknown_keys_are_ignored() throws IOException {
         String json = "{\"overall_severity\":\"NORMAL\",\"verdict\":\"SAFE\"," +
                 "\"future_field\":\"ignored\"," +

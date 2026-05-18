@@ -36,4 +36,12 @@ public class MlResponse {
     private AgentJudgmentDto agent;
     /** Scoring policy version emitted by the ML server (snake: {@code policy_version}); may be null on older ML deployments. */
     private String policyVersion;
+    /**
+     * Free-form retrieval evidence block emitted by the ML server (snake: {@code retrieval_evidence}).
+     * Includes {@code top_k} (list of past similar segments with distance/past_verdict/timestamp),
+     * peer_mismatch flag, retrieval_score, novelty, similar_*_count buckets, etc.
+     * Persisted verbatim into {@code anomaly_history.scores->'retrieval_evidence'} for audit.
+     * May be null on older ML deployments.
+     */
+    private Map<String, Object> retrievalEvidence;
 }

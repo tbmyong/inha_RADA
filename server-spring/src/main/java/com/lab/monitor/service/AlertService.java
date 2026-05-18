@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Slf4j
@@ -44,7 +45,7 @@ public class AlertService {
                 .severity(resp.getOverallSeverity())
                 .anomalyType(resp.getVerdict())
                 .message(resp.getMessage())
-                .scores(resp.getScores())
+                .scores(mergeRetrievalEvidence(resp.getScores(), resp.getRetrievalEvidence()))
                 .alerts(resp.getAlerts())
                 .build();
         AnomalyHistory saved = alertRepository.save(anomaly);
@@ -86,6 +87,25 @@ public class AlertService {
         if (name == null) return false;
         String lower = name.toLowerCase();
         return lower.contains("mock") || lower.contains("stub");
+    }
+
+    /**
+     * Merge retrieval evidence into the scores JSONB under key {@code retrieval_evidence}.
+     * Returns a mutable copy when evidence is present so the caller-supplied scores map
+     * (which may be immutable, e.g. Map.of(...)) is not mutated. Returns the original
+     * scores reference when evidence is null/empty for legacy/no-op compatibility.
+     */
+    static Map<String, Object> mergeRetrievalEvidence(Map<String, Object> scores,
+                                                      Map<String, Object> retrievalEvidence) {
+        if (retrievalEvidence == null || retrievalEvidence.isEmpty()) {
+            return scores;
+        }
+        Map<String, Object> merged = new LinkedHashMap<>();
+        if (scores != null) {
+            merged.putAll(scores);
+        }
+        merged.put("retrieval_evidence", retrievalEvidence);
+        return merged;
     }
 
     /** Preserve the agent block verbatim as JSON map (snake_case keys). */
