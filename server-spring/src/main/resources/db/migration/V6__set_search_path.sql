@@ -1,12 +1,22 @@
--- V6: Set default search_path for the rada role to include pc_monitor.
+-- V6: Set default search_path for the application role.
 --
 -- Why: Grafana dashboards (rada-main, rada-pc-detail) use schema-less
 -- table references (e.g., `FROM metrics_history`). Without this, Postgres
 -- only searches the `public` schema and Grafana panels return
 -- `relation "metrics_history" does not exist`.
 --
--- This is a role-level setting that applies to every new connection.
--- Pooled connections created BEFORE this migration ran need to be
--- recycled (e.g., restart Grafana once after first deploy).
+-- HISTORY: an earlier revision of this migration hard-coded `ALTER ROLE rada ...`.
+-- That broke any deployment whose operational role was not literally `rada`
+-- (e.g. NCP production may use a different name). It is now parametrised
+-- via Flyway placeholders (`${db_user}`, `${db_schema}`), supplied by
+-- `application.yml -> spring.flyway.placeholders`.
+--
+-- For existing dev databases that already applied the old hard-coded V6,
+-- Flyway repair is run automatically at startup (see FlywayMigrationConfig)
+-- to refresh the checksum in flyway_schema_history. Production has not
+-- shipped yet, so the first deploy will see only this placeholder form.
+--
+-- The change is idempotent — ALTER ROLE merely updates the default
+-- search_path, which is safe to re-apply.
 
-ALTER ROLE rada SET search_path TO pc_monitor, public;
+ALTER ROLE "${db_user}" SET search_path TO ${db_schema}, public;
