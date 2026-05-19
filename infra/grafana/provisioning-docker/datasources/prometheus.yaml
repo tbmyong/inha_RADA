@@ -1,0 +1,16 @@
+# Docker-only datasource for the Spring Boot Micrometer/Prometheus scrape
+# endpoint. Spring exposes the endpoint at port 8081 (management port) which
+# is reachable on the docker network but NOT mapped to the host.
+# The NCP systemd setup does not include this file.
+apiVersion: 1
+
+datasources:
+  - name: RADA-Spring-Metrics
+    type: prometheus
+    access: proxy
+    uid: rada_spring
+    url: http://spring-server:8081/actuator/prometheus
+    isDefault: false
+    editable: false
+    jsonData:
+      timeInterval: 15s

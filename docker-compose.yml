@@ -59,13 +59,18 @@ services:
       TZ: Asia/Seoul
     ports:
       - "8080:8080"
+    # Note: management port 8081 is intentionally NOT mapped to the host.
+    # `expose` keeps it reachable on the docker network (grafana scrapes
+    # spring-server:8081/actuator/prometheus) while blocking host access.
+    expose:
+      - "8081"
     depends_on:
       postgres:
         condition: service_healthy
       ml-server:
         condition: service_started
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8081/actuator/health || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 20

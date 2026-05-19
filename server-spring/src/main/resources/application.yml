@@ -47,13 +47,20 @@ security:
     pepper: ${API_KEY_PEPPER}
 
 management:
+  # Separate management port so /actuator/* is reachable only from inside
+  # the docker network (the 8081 port is intentionally NOT mapped to the
+  # host in docker-compose.yml). The 0.0.0.0 bind is required so the
+  # grafana container can scrape spring-server:8081/actuator/prometheus.
+  server:
+    port: 8081
+    address: 0.0.0.0
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,metrics,prometheus
   endpoint:
     health:
-      show-details: never
+      show-details: when-authorized
       show-components: never
 
 logging:

@@ -324,6 +324,85 @@
           "rawSql": "SELECT pc_id, AVG(vram_mb) AS v FROM metrics_history WHERE collected_at > NOW() - INTERVAL '5 minutes' AND pc_id LIKE 'PC-%' GROUP BY pc_id ORDER BY v DESC LIMIT 5"
         }
       ]
+    },
+
+    {
+      "id": 40,
+      "type": "row",
+      "title": "Silent Fail Monitoring (Spring → ML)",
+      "collapsed": false,
+      "gridPos": { "x": 0, "y": 25, "w": 24, "h": 1 },
+      "panels": []
+    },
+    {
+      "id": 41,
+      "type": "timeseries",
+      "title": "ML Forward 실패율 (최근 5분)",
+      "description": "Spring → ML 전송 실패/스킵 비율. 422 (스키마 거부), 500 (ML 내부 오류), transport 등 status 별, missing field 별 누적 카운터의 rate.",
+      "datasource": { "type": "prometheus", "uid": "rada_spring" },
+      "gridPos": { "x": 0, "y": 26, "w": 16, "h": 9 },
+      "options": {
+        "legend": { "displayMode": "table", "placement": "bottom", "calcs": ["lastNotNull", "max"] },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ops",
+          "custom": {
+            "drawStyle": "line", "lineWidth": 2, "fillOpacity": 15, "showPoints": "auto"
+          },
+          "color": { "mode": "palette-classic" }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "rada_spring" },
+          "expr": "sum(rate(rada_ml_forward_failed_total[5m])) by (status)",
+          "legendFormat": "failed status={{status}}"
+        },
+        {
+          "refId": "B",
+          "datasource": { "type": "prometheus", "uid": "rada_spring" },
+          "expr": "sum(rate(rada_ml_forward_skipped_total[5m])) by (reason, field)",
+          "legendFormat": "skipped {{reason}}/{{field}}"
+        }
+      ]
+    },
+    {
+      "id": 42,
+      "type": "stat",
+      "title": "ML Response Invalid (누적)",
+      "description": "missing_severity 등 ML 응답이 contract 를 위반해 폐기된 누적 건수.",
+      "datasource": { "type": "prometheus", "uid": "rada_spring" },
+      "gridPos": { "x": 16, "y": 26, "w": 8, "h": 9 },
+      "options": {
+        "reduceOptions": { "values": false, "calcs": ["lastNotNull"], "fields": "" },
+        "colorMode": "background", "graphMode": "area",
+        "textMode": "value_and_name", "justifyMode": "center"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none", "noValue": "0",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green",  "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red",    "value": 10 }
+            ]
+          }
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": { "type": "prometheus", "uid": "rada_spring" },
+          "expr": "sum(rada_ml_response_invalid_total)",
+          "legendFormat": "invalid responses"
+        }
+      ]
     }
   ]
 }
