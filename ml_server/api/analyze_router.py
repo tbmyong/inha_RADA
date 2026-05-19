@@ -132,4 +132,5 @@ def analyze(metrics: MetricsRequest):
         "global_hw_degradation": global_hw,
         "agent":               agent_result,
         "retrieval_evidence":  retrieval_evidence,
+        "signals_missing":     pattern_result.get("signals_missing", []),
     })

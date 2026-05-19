@@ -363,6 +363,50 @@ class AlertServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void signals_missing_merged_into_scores_jsonb_when_present() {
+        Map<String, Object> scores = Map.of("cpu", 0.5);
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("HIGH")
+                .verdict("DANGEROUS")
+                .scores(scores)
+                .signalsMissing(List.of("network", "process"))
+                .build();
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(201L); return ah; });
+
+        service.handle(resp, "pc-sm");
+
+        ArgumentCaptor<AnomalyHistory> a = ArgumentCaptor.forClass(AnomalyHistory.class);
+        verify(alertRepository).save(a.capture());
+        Map<String, Object> saved = a.getValue().getScores();
+        assertThat(saved).containsKey("signals_missing");
+        List<String> sm = (List<String>) saved.get("signals_missing");
+        assertThat(sm).containsExactly("network", "process");
+        // 원 scores 키도 보존
+        assertThat(saved).containsEntry("cpu", 0.5);
+    }
+
+    @Test
+    void signals_missing_empty_or_null_leaves_scores_untouched() {
+        Map<String, Object> scores = Map.of("cpu", 0.5);
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("HIGH")
+                .verdict("DANGEROUS")
+                .scores(scores)
+                .signalsMissing(List.of())
+                .build();
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(202L); return ah; });
+
+        service.handle(resp, "pc-sm-empty");
+
+        ArgumentCaptor<AnomalyHistory> a = ArgumentCaptor.forClass(AnomalyHistory.class);
+        verify(alertRepository).save(a.capture());
+        assertThat(a.getValue().getScores()).doesNotContainKey("signals_missing");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void score_breakdown_final_can_be_negative_after_context_discount() {
         Map<String, Object> breakdown = Map.of(
                 "resource", 0.10,

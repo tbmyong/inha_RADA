@@ -80,41 +80,63 @@ class CollectorOrchestrator:
             "loop_elapsed": round(time.time() - loop_start, 3),
         }
 
-        # derived_features (13키) — 조립 실패는 격리. 22키는 무영향.
+        # collector 단위 미수신 사유 (수집 실패 vs 실제 0/empty 구분).
+        network_reason = network.get("network_collection_missing_reason")
+        process_reason = getattr(self.process, "last_missing_reason", None)
+
+        # derived_features — partial failure 도 허용. 가능한 키는 최대한 채우고,
+        # 실패한 sub-block 만 missing_reason 으로 표시한다.
+        derived: Dict = {
+            "collector_version": __version__,
+            "collection_interval_sec": self.collection_interval_sec,
+            "gpu_metrics_missing_reason": gpu_reason,
+            "network_collection_missing_reason": network_reason,
+            "process_collection_missing_reason": process_reason,
+        }
+        derived_missing_reasons: Dict[str, str] = {}
+
+        # cpu_mem block
+        try:
+            derived["logical_cpu_count"] = cpu_mem.get("logical_cpu_count", 0)
+            derived["physical_cpu_count"] = cpu_mem.get("physical_cpu_count", 0)
+            derived["uptime_sec"] = cpu_mem.get("uptime_sec", 0)
+        except Exception as e:  # pragma: no cover - defensive
+            derived_missing_reasons["cpu_mem"] = type(e).__name__
+
+        # process-derived block
         try:
             top_norm = [
                 p.get("cpu_percent_normalized", 0.0) for p in procs
             ]
             top_sum = round(sum(top_norm), 2) if top_norm else 0.0
             top_max = round(max(top_norm), 2) if top_norm else 0.0
+            derived["top_process_cpu_sum_normalized"] = top_sum
+            derived["top_process_cpu_max_normalized"] = top_max
+        except Exception as e:  # pragma: no cover - defensive
+            derived_missing_reasons["process_derived"] = type(e).__name__
 
-            metrics["derived_features"] = {
-                "logical_cpu_count": cpu_mem.get("logical_cpu_count", 0),
-                "physical_cpu_count": cpu_mem.get("physical_cpu_count", 0),
-                "uptime_sec": cpu_mem.get("uptime_sec", 0),
-                "collector_version": __version__,
-                "collection_interval_sec": self.collection_interval_sec,
-                "top_process_cpu_sum_normalized": top_sum,
-                "top_process_cpu_max_normalized": top_max,
-                "external_connection_count_raw": network.get(
-                    "external_connection_count_raw",
-                    network.get("external_connection_count", 0),
-                ),
-                "external_connection_count_truncated": network.get(
-                    "external_connection_count_truncated", False
-                ),
-                "unique_remote_ip_count": network.get("unique_remote_ip_count", 0),
-                "unique_remote_port_count": network.get("unique_remote_port_count", 0),
-                "unique_remote_process_count": network.get(
-                    "unique_remote_process_count", 0
-                ),
-                "duplicate_connection_count": network.get(
-                    "duplicate_connection_count", 0
-                ),
-                "gpu_metrics_missing_reason": gpu_reason,
-            }
-        except Exception:
-            # 안전장치 — 22키 ML 페이로드는 무영향
-            pass
+        # network-derived block
+        try:
+            derived["external_connection_count_raw"] = network.get(
+                "external_connection_count_raw",
+                network.get("external_connection_count", 0),
+            )
+            derived["external_connection_count_truncated"] = network.get(
+                "external_connection_count_truncated", False
+            )
+            derived["unique_remote_ip_count"] = network.get("unique_remote_ip_count", 0)
+            derived["unique_remote_port_count"] = network.get("unique_remote_port_count", 0)
+            derived["unique_remote_process_count"] = network.get(
+                "unique_remote_process_count", 0
+            )
+            derived["duplicate_connection_count"] = network.get(
+                "duplicate_connection_count", 0
+            )
+        except Exception as e:  # pragma: no cover - defensive
+            derived_missing_reasons["network_derived"] = type(e).__name__
 
+        if derived_missing_reasons:
+            derived["derived_missing_reasons"] = derived_missing_reasons
+
+        metrics["derived_features"] = derived
         return metrics

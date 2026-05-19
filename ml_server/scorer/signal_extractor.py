@@ -158,6 +158,19 @@ def extract_signals(metrics: MetricsRequest, history: deque, slot: str,
     unique_remote_ip_count = int(df.get("unique_remote_ip_count") or 0)
     duplicate_connection_count = int(df.get("duplicate_connection_count") or 0)
     gpu_missing_reason = df.get("gpu_metrics_missing_reason")
+    network_missing_reason = df.get("network_collection_missing_reason")
+    process_missing_reason = df.get("process_collection_missing_reason")
+    derived_missing_reasons = df.get("derived_missing_reasons") or {}
+
+    # signals_missing: 수집 실패한 카테고리. 점수 0 으로 잠그는 게 아니라
+    # "측정 불가" 임을 명시해 silent fail 을 방지한다.
+    signals_missing: list = []
+    if network_missing_reason:
+        signals_missing.append("network")
+    if process_missing_reason:
+        signals_missing.append("process")
+    if derived_missing_reasons:
+        signals_missing.append("derived_features")
 
     # new_remote_ip_burst: unique ip 가 급증 (>=8 또는 duplicate 적고 unique 많음)
     new_remote_ip_burst = (
@@ -218,8 +231,28 @@ def extract_signals(metrics: MetricsRequest, history: deque, slot: str,
         "spike_count_1m":    spike_count_1m,
     }
 
+    # 수집 실패한 카테고리의 신호는 0/False 대신 명시적으로 drop (False 로 잠금).
+    # 점수 산정 시 missing signal 을 "실제 0" 으로 오인하지 않도록 함.
+    if network_missing_reason:
+        for k in (
+            "net_external_high", "mining_pool_ip", "outbound_spike", "dos_spike",
+            "persistent_ext", "net_out_sustained",
+            "disk_write_net_out_sustained", "new_remote_ip_burst",
+            "spike_count_1m",
+        ):
+            if k in signals:
+                signals[k] = False
+    if process_missing_reason:
+        for k in (
+            "known_miner", "temp_exec", "appdata_exec", "exec_path_suspicious",
+            "unknown_process_active", "persistent_miner", "mining_process_or_pool",
+        ):
+            if k in signals:
+                signals[k] = False
+
     return {
         "signals":            signals,
+        "signals_missing":    signals_missing,
         "is_gaming":          is_gaming,
         "is_compiling":       is_compiling,
         "known_miners":       known_miners,

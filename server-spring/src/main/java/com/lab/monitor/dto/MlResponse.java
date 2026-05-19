@@ -44,4 +44,11 @@ public class MlResponse {
      * May be null on older ML deployments.
      */
     private Map<String, Object> retrievalEvidence;
+    /**
+     * F5: signals that could not be collected on the client (e.g. "network", "process",
+     * "derived_features"). Empty list / null on healthy collection. Persisted into
+     * {@code anomaly_history.scores->'signals_missing'} so silent-fail PCs are visible
+     * in dashboards instead of being misread as "real zero" / NORMAL.
+     */
+    private List<String> signalsMissing;
 }

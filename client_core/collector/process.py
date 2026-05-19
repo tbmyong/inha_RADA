@@ -1,7 +1,7 @@
 """프로세스 수집기. CPU 사용률 상위 10개."""
 from __future__ import annotations
 
-from typing import List
+from typing import List, Optional
 
 import psutil
 
@@ -11,6 +11,9 @@ from .base import BaseCollector
 class ProcessCollector(BaseCollector):
     def __init__(self, top_n: int = 10) -> None:
         self.top_n = top_n
+        # 수집 실패와 실제 빈 리스트를 구분하기 위한 미수신 사유 (gpu.py 패턴과 동치).
+        # 정상 시 None. 예외 발생 시 사유 문자열.
+        self.last_missing_reason: Optional[str] = None
         try:
             self._logical_cpu = psutil.cpu_count(logical=True) or 1
         except Exception:
@@ -19,6 +22,7 @@ class ProcessCollector(BaseCollector):
             self._logical_cpu = 1
 
     def collect(self) -> List[dict]:
+        self.last_missing_reason = None
         try:
             pid_name_map = {}
             for proc in psutil.process_iter(["pid", "name"]):
@@ -56,5 +60,12 @@ class ProcessCollector(BaseCollector):
 
             proc_list.sort(key=lambda p: p["cpu_percent"], reverse=True)
             return proc_list[: self.top_n]
+        except PermissionError:
+            self.last_missing_reason = "permission_error"
+            return []
+        except OSError:
+            self.last_missing_reason = "os_error"
+            return []
         except Exception:
+            self.last_missing_reason = "unknown"
             return []

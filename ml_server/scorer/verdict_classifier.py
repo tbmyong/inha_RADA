@@ -187,6 +187,7 @@ def analyze_pattern(metrics: MetricsRequest, history: deque, slot: str,
         "alerts":           alerts,
         "verdict":          verdict,
         "policy_version":   policy_version,
+        "signals_missing":  sig_pack.get("signals_missing", []),
         "scores": {
             "final":              round(final_score, 2),
             "adjusted":           round(adjusted_score, 2),

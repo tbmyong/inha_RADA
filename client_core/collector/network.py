@@ -48,6 +48,7 @@ class NetworkCollector(BaseCollector):
         unique_ips: Set[str] = set()
         unique_ports: Set[int] = set()
         unique_pids: Set[int] = set()
+        missing_reason: Optional[str] = None
         try:
             for conn in psutil.net_connections(kind="inet"):
                 if conn.laddr:
@@ -66,8 +67,12 @@ class NetworkCollector(BaseCollector):
                     unique_ports.add(rport)
                     if pid is not None:
                         unique_pids.add(pid)
+        except PermissionError:
+            missing_reason = "permission_error"
+        except OSError:
+            missing_reason = "os_error"
         except Exception:
-            pass
+            missing_reason = "unknown"
 
         raw_count = len(external_connections_raw)
         # 중복: (ip, port, pid) 3중쌍 동일 → 중복 1건
@@ -100,4 +105,5 @@ class NetworkCollector(BaseCollector):
             "unique_remote_port_count": len(unique_ports),
             "unique_remote_process_count": len(unique_pids),
             "duplicate_connection_count": duplicate_count,
+            "network_collection_missing_reason": missing_reason,
         }

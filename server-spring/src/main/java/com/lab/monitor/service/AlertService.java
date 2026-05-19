@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 @Slf4j
@@ -45,7 +46,9 @@ public class AlertService {
                 .severity(resp.getOverallSeverity())
                 .anomalyType(resp.getVerdict())
                 .message(resp.getMessage())
-                .scores(mergeRetrievalEvidence(resp.getScores(), resp.getRetrievalEvidence()))
+                .scores(mergeAuditExtras(resp.getScores(),
+                        resp.getRetrievalEvidence(),
+                        resp.getSignalsMissing()))
                 .alerts(resp.getAlerts())
                 .build();
         AnomalyHistory saved = alertRepository.save(anomaly);
@@ -105,6 +108,33 @@ public class AlertService {
             merged.putAll(scores);
         }
         merged.put("retrieval_evidence", retrievalEvidence);
+        return merged;
+    }
+
+    /**
+     * F5: merge both retrieval_evidence and signals_missing into the scores JSONB.
+     * Always returns a mutable copy when either extra is present so the caller-
+     * supplied scores map (potentially {@code Map.of(...)}) is not mutated.
+     * Returns the original scores reference when both extras are null/empty.
+     */
+    static Map<String, Object> mergeAuditExtras(Map<String, Object> scores,
+                                                Map<String, Object> retrievalEvidence,
+                                                List<String> signalsMissing) {
+        boolean hasEvidence = retrievalEvidence != null && !retrievalEvidence.isEmpty();
+        boolean hasMissing = signalsMissing != null && !signalsMissing.isEmpty();
+        if (!hasEvidence && !hasMissing) {
+            return scores;
+        }
+        Map<String, Object> merged = new LinkedHashMap<>();
+        if (scores != null) {
+            merged.putAll(scores);
+        }
+        if (hasEvidence) {
+            merged.put("retrieval_evidence", retrievalEvidence);
+        }
+        if (hasMissing) {
+            merged.put("signals_missing", signalsMissing);
+        }
         return merged;
     }
 

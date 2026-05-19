@@ -124,6 +124,21 @@ class MlResponseContractTest {
     }
 
     @Test
+    void signals_missing_deserializes_into_list_of_strings() throws IOException {
+        String json = "{\"overall_severity\":\"HIGH\",\"verdict\":\"DANGEROUS\"," +
+                "\"signals_missing\":[\"network\",\"process\"]}";
+        MlResponse mapped = mapper.readValue(json, MlResponse.class);
+        assertThat(mapped.getSignalsMissing()).containsExactly("network", "process");
+    }
+
+    @Test
+    void signals_missing_absent_is_null() throws IOException {
+        String json = "{\"overall_severity\":\"NORMAL\",\"verdict\":\"SAFE\"}";
+        MlResponse mapped = mapper.readValue(json, MlResponse.class);
+        assertThat(mapped.getSignalsMissing()).isNull();
+    }
+
+    @Test
     void unknown_keys_are_ignored() throws IOException {
         String json = "{\"overall_severity\":\"NORMAL\",\"verdict\":\"SAFE\"," +
                 "\"future_field\":\"ignored\"," +
