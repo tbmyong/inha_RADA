@@ -1,5 +1,8 @@
 package com.lab.monitor.service;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
@@ -9,6 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.OffsetDateTime;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Nightly TTL pruner for {@code metrics_history}.
@@ -31,20 +35,42 @@ public class MetricsTtlJob {
     @PersistenceContext
     private EntityManager em;
 
+    private final MeterRegistry meterRegistry;
+
+    private Counter successCounter;
+    private Counter failedCounter;
+    /** 마지막 prune 실행에서 삭제된 행 수 (gauge). */
+    private final AtomicLong lastDeletedCount = new AtomicLong(0L);
+
+    @PostConstruct
+    void registerMetrics() {
+        this.successCounter = meterRegistry.counter("rada.metrics.ttl.success");
+        this.failedCounter  = meterRegistry.counter("rada.metrics.ttl.failed");
+        meterRegistry.gauge("rada.metrics.ttl.deleted_count", lastDeletedCount);
+    }
+
     @Scheduled(cron = "0 0 3 * * *", zone = "Asia/Seoul")
     public void prune() {
         OffsetDateTime cutoff = OffsetDateTime.now().minusDays(RETENTION_DAYS);
         long totalDeleted = 0;
         int batches = 0;
-        while (batches < MAX_BATCHES) {
-            int deleted = deleteBatch(cutoff);
-            if (deleted <= 0) break;
-            totalDeleted += deleted;
-            batches++;
-            if (deleted < BATCH_SIZE) break;
+        try {
+            while (batches < MAX_BATCHES) {
+                int deleted = deleteBatch(cutoff);
+                if (deleted <= 0) break;
+                totalDeleted += deleted;
+                batches++;
+                if (deleted < BATCH_SIZE) break;
+            }
+            lastDeletedCount.set(totalDeleted);
+            if (successCounter != null) successCounter.increment();
+            log.info("metrics_history TTL prune: cutoff={} deleted={} batches={}",
+                    cutoff, totalDeleted, batches);
+        } catch (Exception e) {
+            if (failedCounter != null) failedCounter.increment();
+            log.warn("metrics_history TTL prune failed cutoff={} batches={} err={}",
+                    cutoff, batches, e.getMessage());
         }
-        log.info("metrics_history TTL prune: cutoff={} deleted={} batches={}",
-                cutoff, totalDeleted, batches);
     }
 
     /**

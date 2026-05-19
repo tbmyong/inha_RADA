@@ -18,6 +18,7 @@ from ..feature.feature_builder import (
 )
 from ..feature.boxplot_filter import filter_training_data_by_boxplot
 from ..model.requests import MetricsRequest
+from ..silent_fail_counters import increment as _bump_silent_fail
 from ..storage import pc_history_store, model_store, score_history_store
 
 
@@ -82,6 +83,7 @@ def train_model(pc_id: str, slot: str) -> bool:
 
     except Exception as e:
         print(f"[학습 실패] {pc_id}/{slot}: {e}")
+        _bump_silent_fail("model_train_failure_count")
         return False
 
 
@@ -149,6 +151,7 @@ def predict_anomaly(pc_id: str, slot: str, metrics: MetricsRequest) -> dict:
         }
 
     except Exception as e:
+        _bump_silent_fail("model_predict_failure_count")
         return {
             "available":      False,
             "reason":         f"예측 오류: {e}",

@@ -13,6 +13,7 @@ from typing import Any, Dict, FrozenSet, Optional
 import yaml
 
 from .validation import validate_scoring_policy, PolicyValidationError
+from ..silent_fail_counters import increment as _bump_silent_fail
 
 
 # ──────────────────────────────────────────
@@ -161,12 +162,20 @@ def get_allowlist() -> AllowList:
 
 
 def reload_policies() -> None:
-    """테스트용: 캐시 초기화 후 재로드."""
+    """테스트용: 캐시 초기화 후 재로드.
+
+    fail-fast 정책 유지: 실패 시 예외를 그대로 전파한다.
+    silent_fail_counters 의 policy_reload_failed_count 는 관측 목적으로만 증가.
+    """
     global _scoring_policy_cache, _allowlist_cache
     _scoring_policy_cache = None
     _allowlist_cache = None
-    load_scoring_policy()
-    load_allowlist()
+    try:
+        load_scoring_policy()
+        load_allowlist()
+    except Exception:
+        _bump_silent_fail("policy_reload_failed_count")
+        raise
 
 
 __all__ = [

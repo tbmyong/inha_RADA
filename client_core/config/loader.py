@@ -88,6 +88,7 @@ def _apply_env_overrides(cfg: ClientConfig) -> ClientConfig:
     ml_url = os.environ.get("RADA_ML_SERVER_URL")
     sb_url = os.environ.get("RADA_SPRING_BOOT_URL")
     api_key = os.environ.get("RADA_API_KEY")
+    queue_path = os.environ.get("RADA_LOCAL_QUEUE_PATH")
 
     if mode is not None:
         if mode not in defaults.VALID_MODES:
@@ -101,6 +102,9 @@ def _apply_env_overrides(cfg: ClientConfig) -> ClientConfig:
         cfg.spring_boot_url = sb_url
     if api_key is not None:
         cfg.api_key = api_key
+    if queue_path is not None:
+        # 빈 문자열은 명시적 disable 로 간주
+        cfg.local_queue_path = queue_path or None
     return cfg
 
 

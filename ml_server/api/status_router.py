@@ -3,6 +3,7 @@ from fastapi import APIRouter
 
 from ..storage import pc_history_store, model_store
 from ..detector.global_degradation import detect_global_hw_degradation
+from ..silent_fail_counters import get_silent_fail_counters
 
 router = APIRouter()
 
@@ -17,4 +18,5 @@ def status():
                              for pc_id, h in pc_history_store.pc_history.items()},
         "trained_models":   model_store.list_trained(),
         "global_hw_latest": detect_global_hw_degradation(),
+        "silent_fail_counters": get_silent_fail_counters(),
     }
