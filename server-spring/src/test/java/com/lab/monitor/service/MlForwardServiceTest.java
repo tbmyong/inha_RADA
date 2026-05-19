@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.lab.monitor.dto.MetricsRequest;
 import com.lab.monitor.dto.MlResponse;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -21,13 +23,15 @@ class MlForwardServiceTest {
 
     private WebClient mlWebClient;
     private AlertService alertService;
+    private MeterRegistry meterRegistry;
     private MlForwardService service;
 
     @BeforeEach
     void setUp() {
         mlWebClient = mock(WebClient.class);
         alertService = mock(AlertService.class);
-        service = new MlForwardService(mlWebClient, alertService);
+        meterRegistry = new SimpleMeterRegistry();
+        service = new MlForwardService(mlWebClient, alertService, meterRegistry);
     }
 
     @Test
@@ -74,6 +78,24 @@ class MlForwardServiceTest {
         spy.forwardAsync("pc-1", req);
 
         verify(alertService, never()).handle(any(), any());
+    }
+
+    @Test
+    void forward_skips_ml_call_when_required_fields_missing() {
+        // No cpu_percent / disk_* / network_* set — only timestamp.
+        MetricsRequest req = MetricsRequest.builder()
+                .timestamp(OffsetDateTime.now())
+                .build();
+
+        Optional<MlResponse> resp = service.forward("pc-1", req);
+
+        assertThat(resp).isEmpty();
+        // The skip path should have emitted at least one counter increment.
+        double skipped = meterRegistry.find("rada.ml.forward.skipped").counters()
+                .stream().mapToDouble(c -> c.count()).sum();
+        assertThat(skipped).isGreaterThan(0.0);
+        // WebClient must not have been invoked at all when we short-circuited.
+        verifyNoInteractions(mlWebClient);
     }
 
     @Test
