@@ -81,8 +81,3 @@ YAML 정책은 `ml_server/config_yaml/scoring_policy.yaml`, `ml_server/config_ya
 - 로컬/CI: `docker-compose.yml` (4 컨테이너 — postgres, ml-server, spring-server, grafana).
 - 운영(NCP): `infra/ncp/systemd/*.service` 로 동일 호스트에 네이티브 기동. Docker compose 파일은
   운영 경로에서 참조되지 않는다.
-
-## 라이선스 / 팀
-
-- 라이선스: TBD (사내 연구용 — 외부 공개 전 협의 필요).
-- 유지보수: 인하대학교 컴퓨터공학과 종합설계 RADA 팀. 문의는 저장소 이슈로 접수한다.
