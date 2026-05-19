@@ -197,7 +197,7 @@
       "targets": [
         {
           "refId": "A", "format": "table",
-          "rawSql": "SELECT CASE WHEN verdict ILIKE '%mining%' THEN 'Mining' WHEN verdict ILIKE '%heavy%' THEN 'Heavy Load' WHEN verdict ILIKE '%hw%' OR verdict ILIKE '%error%' THEN 'HW Error' ELSE 'Normal' END AS metric, COUNT(*) AS value FROM ai_judgment_history WHERE judged_at > NOW() - INTERVAL '1 hour' GROUP BY 1 ORDER BY 1"
+          "rawSql": "SELECT CASE WHEN judgment IN ('MINING','DANGEROUS') THEN 'Mining' WHEN judgment = 'HEAVY_LOAD' THEN 'Heavy Load' WHEN judgment = 'HW_ERROR' THEN 'HW Error' WHEN judgment = 'NORMAL' THEN 'Normal' ELSE 'Other' END AS metric, COUNT(*) AS value FROM ai_judgment_history WHERE judged_at > NOW() - INTERVAL '1 hour' GROUP BY 1 ORDER BY 1"
         }
       ]
     },
