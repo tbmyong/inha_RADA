@@ -1,5 +1,7 @@
 # inha_RADA
 
+[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+
 **R**esource **A**nomaly **D**etection **A**gent — 연구실 PC 40대 규모 자원 모니터링 및
 이상 탐지 플랫폼. 클라이언트가 5초 주기로 메트릭을 수집해 Spring Boot 수신 서버로 전송하고,
 FastAPI ML 서버가 EDR 스타일 스코어링으로 채굴/노후화/오작동을 판정하며, Grafana 가 LAB-01
@@ -81,3 +83,15 @@ YAML 정책은 `ml_server/config_yaml/scoring_policy.yaml`, `ml_server/config_ya
 - 로컬/CI: `docker-compose.yml` (4 컨테이너 — postgres, ml-server, spring-server, grafana).
 - 운영(NCP): `infra/ncp/systemd/*.service` 로 동일 호스트에 네이티브 기동. Docker compose 파일은
   운영 경로에서 참조되지 않는다.
+
+## 팀원 합류
+
+신규 팀원은 한 줄 온보딩 스크립트로 dev 환경 준비:
+
+```powershell
+pwsh -File scripts/onboard.ps1
+```
+
+`.env` 복사 → docker compose up → 시드 적용 → anomaly smoke 까지 자동 수행. 실패 시 단계별 가이드를
+출력한다. 기여 방법 / 브랜치 명명 / contract 규칙은 [`CONTRIBUTING.md`](CONTRIBUTING.md) 참조.
+`main` 보호 설정은 [`docs/branch-protection.md`](docs/branch-protection.md).

@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 팀 채널 (간단 질문)
+    url: https://github.com/
+    about: 디버깅 한 줄 질문이면 팀 채팅으로 먼저. 재현 가능한 결함이면 Bug report 사용.

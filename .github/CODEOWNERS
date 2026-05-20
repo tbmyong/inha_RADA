@@ -1,0 +1,18 @@
+# CODEOWNERS — 팀원 GitHub username 합류 시 placeholder 를 채울 것.
+# 비워둔 상태에서는 GitHub 가 무시한다 (에러는 없음).
+#
+# 기본 owner — 모든 파일
+# *  @TEAM_LEAD_USERNAME
+
+# 모듈별 (담당자 정해지면 주석 해제)
+# /server-spring/  @SPRING_OWNER
+# /ml_server/      @ML_OWNER
+# /infra/grafana/  @DASHBOARD_OWNER
+# /client_core/    @CLIENT_OWNER
+# /client.py       @CLIENT_OWNER
+# /infra/          @OPS_OWNER
+
+# 공통 — 누가 만지든 리뷰 필수
+# /.github/         @TEAM_LEAD_USERNAME
+# /docker-compose.yml @TEAM_LEAD_USERNAME @OPS_OWNER
+# /docs/            @TEAM_LEAD_USERNAME
