@@ -34,8 +34,10 @@ Thumbs.db
 .agent_queue.jsonl
 .agent_queue.jsonl.tmp
 
-# Temporary debug helpers under tools/ (e.g. tools/_dbg_*.py).
+# Temporary debug helpers + eval result snapshots under tools/.
 tools/_dbg_*.py
+tools/_*.json
+tools/_*.csv
 
 # Provisioning toolkit outputs — contain raw API keys, never commit.
 tools/provisioned_keys*.csv
