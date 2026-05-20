@@ -36,3 +36,8 @@ Thumbs.db
 
 # Temporary debug helpers under tools/ (e.g. tools/_dbg_*.py).
 tools/_dbg_*.py
+
+# Provisioning toolkit outputs — contain raw API keys, never commit.
+tools/provisioned_keys*.csv
+tools/*.key
+provisioned_keys*.csv
