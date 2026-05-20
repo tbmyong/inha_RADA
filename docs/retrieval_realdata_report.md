@@ -8,11 +8,13 @@
 |---|---|
 | 데이터 소스 | `pc_monitor.metrics_history` |
 | PC | `0c7a15737f66` (admin lab notebook, MAC 기반 ID) |
-| 수집 기간 | 약 1시간 (5초 간격, 백그라운드 `python client.py`) |
-| metric row 수 | **797** |
-| 정상 segment (12-snapshot 윈도우) | **131** |
+| 수집 기간 | 약 4시간 (5초 간격, 백그라운드 `python client.py`) |
+| metric row 수 | **3,029** |
+| 정상 segment (12-snapshot 윈도우) | **503** |
 | Mining injection | `tools/anomaly_trigger.py` × 15회 |
 | Mining segment | **15** |
+
+> **버전 노트**: 본 리포트는 4시간 누적 데이터 기준으로 갱신됨. 초기 1시간 (rows=797, normal_segments=131) 결과와 비교 시 Mode C 의 우위가 더 명확해졌다 (CV 2.5x → 3.9x).
 
 비교 대상 3 모드:
 
@@ -26,15 +28,15 @@
 
 | 지표 | mean | p50 | p95 | max |
 |---|---|---|---|---|
-| `cpu_percent` | 41.5 | 48.7 | 74.8 | 96.3 |
-| `memory_percent` | 71.0 | 74.5 | 77.5 | 79.8 |
-| `disk_read_mb` (5s delta) | 5.96 | 0.28 | 19.6 | 389.7 |
-| `disk_write_mb` (5s delta) | 12.8 | 10.1 | 20.4 | 478.5 |
-| `inbound_mb` (5s delta) | 6.3 | 5.8 | 8.9 | 115.3 |
-| `outbound_mb` (5s delta) | 2.1 | 0.15 | 11.5 | 23.3 |
-| `external_packet_count` | 7.8 | 4 | 18 | 104 |
+| `cpu_percent` | 22.4 | 12.4 | 64.8 | 96.3 |
+| `memory_percent` | 60.3 | 56.2 | 76.8 | 79.8 |
+| `disk_read_mb` (5s delta) | 4.00 | 0.08 | 5.9 | 1184.9 |
+| `disk_write_mb` (5s delta) | 10.4 | 8.3 | 18.6 | 1418.9 |
+| `inbound_mb` (5s delta) | 5.8 | 6.4 | 12.6 | 115.3 |
+| `outbound_mb` (5s delta) | 1.7 | 0.20 | 8.96 | 29.5 |
+| `external_packet_count` | 9.2 | 9 | 19 | 104 |
 
-평소 lab PC 사용 패턴 (브라우저 / IDE / 로컬 빌드) — CPU 평균 ~42%, 메모리 71%, 외부 네트워크는 가벼움. 합성 90 segment 보다 **노이즈가 많다 (max 가 평균의 수십 배)** — 정규화 효과 검증에 더 의미 있는 데이터셋.
+평소 lab PC 사용 패턴 (브라우저 / IDE / 로컬 빌드) — CPU 평균 ~22% (idle 시간 비중 큼), 메모리 60%, 외부 네트워크는 가벼움. **disk_write_mb 의 max=1418 (평균의 137x)** 같은 outlier 가 다수 — 정규화 효과 검증에 매우 의미 있는 데이터셋. 합성 90 segment 보다 노이즈/스파이크 분포가 훨씬 현실적.
 
 ## 3. Mining detection (각 모드별)
 
@@ -55,31 +57,35 @@
 정상 traffic 50개를 random sampling → 각각 query → top-k 의 verdict 분포 확인.
 **FP = 정상 query 가 anomaly verdict (HIGH_RISK/SUSPICIOUS) 와 매칭되는 비율**.
 
-| Mode | n | FP count | FP rate | top-1 distance (mean) | top-1 distance (std) | top-1 distance (max) |
-|---|---|---|---|---|---|---|
-| B — euclidean raw | 50 | 0 | **0%** | **90.025** | **270.358** | **1649.04** |
-| C — cosine normalized | 50 | 0 | **0%** | **0.0135** | **0.016** | **0.1014** |
+| Mode | n | FP count | FP rate | top-1 distance (mean) | top-1 distance (std) | top-1 distance (max) | separability_ratio |
+|---|---|---|---|---|---|---|---|
+| B — euclidean raw | 50 | 0 | **0%** | **59.99** | **155.56** | **893.67** | 257.09 (scale-naive) |
+| C — cosine normalized | 50 | 0 | **0%** | **0.0101** | **0.0068** | **0.0341** | 74.75 |
 
-FP rate 자체는 두 모드 모두 0% — 1시간 데이터 규모에선 충분히 분리된다.
+FP rate 자체는 두 모드 모두 0% — 4시간 데이터 규모에서도 충분히 분리된다.
+
+> `separability_ratio` = mining-to-normal top-k distance / normal-to-normal top-k distance. 절대 distance scale 에 비례해 커지므로 raw Euclidean (B) 이 더 크게 나오는 건 거리 단위 차이 때문이며, **품질 우위로 해석하면 안 된다**. 운영상 중요한 건 normal traffic 거리 분포의 안정성 (낮은 CV, 작은 max/mean).
 
 핵심 차이는 **top-1 distance 의 분산**:
 
 | 메트릭 | B (Euclidean raw) | C (Cosine norm) | 비율 |
 |---|---|---|---|
-| mean | 90.025 | 0.0135 | — (단위 다름) |
-| std/mean (CV) | **3.00** | **1.19** | C 가 2.5배 안정 |
-| max/mean | **18.3x** | **7.5x** | C 가 2.4배 안정 |
+| mean | 59.99 | 0.0101 | — (단위 다름) |
+| std/mean (CV) | **2.59** | **0.67** | **C 가 3.9배 안정** |
+| max/mean | **14.9x** | **3.4x** | **C 가 4.4배 안정** |
 
-→ Cosine + normalize 가 **거리 분포의 분산 (variance) 을 약 2.5x 줄임**. raw Euclidean 의 max distance 1649 는 큰 스케일 feature 의 dominance 의 흔적 (특정 outlier — disk_write_mb=478, inbound_mb=115 같은 — 가 거리를 압도). Cosine 은 방향 기반이라 outlier 1개의 영향이 제한적.
+→ Cosine + normalize 가 **거리 분포의 분산 (variance) 을 약 4x 줄임**. raw Euclidean 의 max distance 894 는 큰 스케일 feature 의 dominance 의 흔적 (특정 outlier — disk_write_mb=1418, inbound_mb=115 같은 — 가 거리를 압도). Cosine 은 방향 기반이라 outlier 1개의 영향이 제한적.
+
+**1시간 데이터와 비교**: CV 격차 2.5x → 3.9x, max/mean 격차 2.4x → 4.4x — 데이터 규모가 늘수록 Cosine 의 안정성 우위가 더 뚜렷해진다.
 
 ## 5. 결론
 
 | 발견 | 의미 |
 |---|---|
 | Mining detection rate: A/B/C 동등 (100% HR) | Rule scoring 만으로도 명백한 mining 은 즉시 잡힌다. retrieval 의 가치는 detection 자체가 아니라 borderline 케이스의 신뢰도 보강 |
-| FP rate: B 0% / C 0% (1시간 데이터) | 데이터 규모가 충분히 커지면 (7일+) raw Euclidean 의 큰 분산이 FP 를 만들 가능성 — Cosine 이 더 안전 |
-| top-1 distance variance: C 가 B 대비 2.5x 안정 | 큰 스케일 feature dominance 가 cosine + normalize 로 해소되었음을 실데이터에서 재확인 |
-| 합성 결과 separability 7.60x → 8.78x | 실데이터에선 분산 비율 (CV/max·mean ratio) 로 2.4~2.5x 안정화. 합성/실데이터 모두 cosine 우세 |
+| FP rate: B 0% / C 0% (4시간 데이터) | 데이터 규모가 더 커지면 (7일+) raw Euclidean 의 큰 분산이 FP 를 만들 가능성 — Cosine 이 더 안전 |
+| top-1 distance variance: C 가 B 대비 4x 안정 | 큰 스케일 feature dominance 가 cosine + normalize 로 해소되었음을 실데이터에서 재확인. 1h → 4h 로 갈수록 격차 확대 (2.5x → 3.9~4.4x) |
+| 합성 결과 separability 7.60x → 8.78x | 실데이터에선 분산 비율 (CV / max·mean ratio) 로 3.9~4.4x 안정화. 합성/실데이터 모두 cosine 우세이며 실데이터에서 더 큰 효과 |
 
 ## 6. 한계 + 향후 과제
 
