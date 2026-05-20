@@ -158,6 +158,13 @@ def extract_signals(metrics: MetricsRequest, history: deque, slot: str,
     unique_remote_ip_count = int(df.get("unique_remote_ip_count") or 0)
     duplicate_connection_count = int(df.get("duplicate_connection_count") or 0)
     gpu_missing_reason = df.get("gpu_metrics_missing_reason")
+    # GPU partial failure: collector 가 반환하는 sub-field 별 실패 사유 리스트.
+    # signal_extractor 는 None 인 sub-field 를 0 으로 잠그지 않고 skip 해야 한다.
+    gpu_partial_failure_reasons: list = []
+    if gpu is not None:
+        raw = getattr(gpu, "gpu_partial_failure_reasons", None)
+        if isinstance(raw, list):
+            gpu_partial_failure_reasons = list(raw)
     network_missing_reason = df.get("network_collection_missing_reason")
     process_missing_reason = df.get("process_collection_missing_reason")
     derived_missing_reasons = df.get("derived_missing_reasons") or {}
@@ -171,6 +178,8 @@ def extract_signals(metrics: MetricsRequest, history: deque, slot: str,
         signals_missing.append("process")
     if derived_missing_reasons:
         signals_missing.append("derived_features")
+    if gpu_partial_failure_reasons:
+        signals_missing.append("gpu_partial")
 
     # new_remote_ip_burst: unique ip 가 급증 (>=8 또는 duplicate 적고 unique 많음)
     new_remote_ip_burst = (
@@ -266,4 +275,5 @@ def extract_signals(metrics: MetricsRequest, history: deque, slot: str,
         "unique_remote_ip_count": unique_remote_ip_count,
         "duplicate_connection_count": duplicate_connection_count,
         "gpu_metrics_missing_reason": gpu_missing_reason,
+        "gpu_partial_failure_reasons": gpu_partial_failure_reasons,
     }

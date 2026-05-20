@@ -163,6 +163,67 @@ def test_springboot_mode_includes_api_key_header(monkeypatch, queue):
     assert headers.get("Content-Type") == "application/json"
 
 
+def test_status_401_drops_no_queue(monkeypatch, queue):
+    """401 Unauthorized → drop, 큐 미적재, dropped_4xx_count 증가."""
+    resp = _Resp(401, raise_json=True)
+    _patch_post(monkeypatch, resp)
+    sender = MetricsSender(url="http://sb:8080/api/metrics", queue=queue, mode="springboot", api_key="K")
+    result = sender.send({"pc_id": "pc1", "timestamp": "t"}, [], {})
+    assert result is None
+    assert len(queue) == 0
+    assert sender.dropped_4xx_count == 1
+
+
+def test_status_403_drops_no_queue(monkeypatch, queue):
+    resp = _Resp(403, raise_json=True)
+    _patch_post(monkeypatch, resp)
+    sender = MetricsSender(url="http://sb:8080/api/metrics", queue=queue, mode="springboot", api_key="K")
+    result = sender.send({"pc_id": "pc1", "timestamp": "t"}, [], {})
+    assert result is None
+    assert len(queue) == 0
+    assert sender.dropped_4xx_count == 1
+
+
+def test_status_422_drops_no_queue(monkeypatch, queue):
+    resp = _Resp(422, raise_json=True)
+    _patch_post(monkeypatch, resp)
+    sender = MetricsSender(url="http://ml:8000/analyze", queue=queue, mode="mlserver")
+    result = sender.send({"pc_id": "pc1", "timestamp": "t"}, [], {})
+    assert result is None
+    assert len(queue) == 0
+    assert sender.dropped_4xx_count == 1
+
+
+def test_status_429_still_queues(monkeypatch, queue):
+    """429 Too Many Requests → 재시도 가능. 큐 적재."""
+    resp = _Resp(429, raise_json=True)
+    _patch_post(monkeypatch, resp)
+    sender = MetricsSender(url="http://ml:8000/analyze", queue=queue, mode="mlserver")
+    result = sender.send({"pc_id": "pc1", "timestamp": "t"}, [], {})
+    assert result is None
+    assert len(queue) == 1
+    assert sender.dropped_4xx_count == 0
+
+
+def test_replay_401_returns_true_no_requeue(monkeypatch, queue):
+    """replay() 가 401 만나면 True 반환 (caller 가 재적재하지 않도록)."""
+    resp = _Resp(401, raise_json=True)
+    _patch_post(monkeypatch, resp)
+    sender = MetricsSender(url="http://sb:8080/api/metrics", queue=queue, mode="springboot", api_key="K")
+    ok = sender.replay({"pc_id": "pc1", "timestamp": "t"})
+    assert ok is True
+    assert sender.dropped_4xx_count == 1
+
+
+def test_replay_500_returns_false_for_requeue(monkeypatch, queue):
+    resp = _Resp(500, raise_json=True)
+    _patch_post(monkeypatch, resp)
+    sender = MetricsSender(url="http://sb:8080/api/metrics", queue=queue, mode="springboot", api_key="K")
+    ok = sender.replay({"pc_id": "pc1", "timestamp": "t"})
+    assert ok is False
+    assert sender.dropped_4xx_count == 0
+
+
 def test_mlserver_mode_has_no_headers(monkeypatch, queue):
     """mode=mlserver → 헤더 없음 (requests.post 에 headers 미전달)."""
     resp = _Resp(200, body={"ok": True})

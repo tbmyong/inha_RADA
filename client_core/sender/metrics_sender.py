@@ -21,6 +21,14 @@ from .sanitizer import sanitize_for_json
 log = logging.getLogger(__name__)
 
 
+# Retry 정책:
+# - 200/202        : 성공
+# - 401/403/422    : drop — 인증/payload 문제, 재시도 무의미
+# - 그 외 4xx/5xx  : 재시도 (큐에 적재)
+# - ConnectionError: 재시도 (큐에 적재)
+NON_RETRYABLE_STATUS = frozenset({401, 403, 422})
+
+
 class MetricsSender:
     def __init__(
         self,
@@ -53,6 +61,8 @@ class MetricsSender:
 
         self.timeout = timeout
         self.queue = queue
+        # 4xx drop 카운터 — 관측용 (F1 metric 패턴과 일관, 단순 print 로 가시화).
+        self.dropped_4xx_count: int = 0
 
     def _build_headers(self) -> dict:
         if self.mode == "springboot":
@@ -91,6 +101,19 @@ class MetricsSender:
                     return resp.json()
                 except (ValueError, json.JSONDecodeError):
                     return {}
+            # 401/403/422 → drop (재시도 무의미). 큐에 쌓지 않는다.
+            if resp.status_code in NON_RETRYABLE_STATUS:
+                self.dropped_4xx_count += 1
+                print(
+                    f"  [전송 drop] mode={self.mode} status={resp.status_code} "
+                    f"(non-retryable; total_dropped={self.dropped_4xx_count})"
+                )
+                log.error(
+                    "send dropped mode=%s status=%s reason=non_retryable",
+                    self.mode,
+                    resp.status_code,
+                )
+                return None
             print(
                 f"  [전송 오류] mode={self.mode} status={resp.status_code}"
             )
@@ -131,6 +154,15 @@ class MetricsSender:
                 log.debug(
                     "replay ok mode=%s status=%s", self.mode, resp.status_code
                 )
+                return True
+            if resp.status_code in NON_RETRYABLE_STATUS:
+                self.dropped_4xx_count += 1
+                log.error(
+                    "replay dropped mode=%s status=%s reason=non_retryable",
+                    self.mode,
+                    resp.status_code,
+                )
+                # True 반환: 호출 측이 재적재하지 않도록 (drop).
                 return True
             log.warning(
                 "replay failed mode=%s status=%s", self.mode, resp.status_code

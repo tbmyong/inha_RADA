@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from .api.analyze_router import router as analyze_router
 from .api.status_router import router as status_router
 from .api.clear_router import router as clear_router
+from .api.admin_router import router as admin_router
 from .policy import load_scoring_policy, load_allowlist
 
 
@@ -29,3 +30,4 @@ app = FastAPI(
 app.include_router(analyze_router)
 app.include_router(status_router)
 app.include_router(clear_router)
+app.include_router(admin_router)

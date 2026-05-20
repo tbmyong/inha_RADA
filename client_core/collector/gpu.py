@@ -63,19 +63,29 @@ class GpuCollector(BaseCollector):
             if not gpus:
                 return (None, "no_gpu")
             gpu = gpus[0]
+            partial_failures: list = []
+            # temperature 는 schema 상 Optional 이므로 개별 실패 분리 가능.
+            try:
+                temp_val = gpu.temperature
+            except Exception:
+                temp_val = None
+                partial_failures.append("temp_read_failed")
+
             result: Dict = {
                 "name": gpu.name,
                 "load_percent": round(gpu.load * 100, 1),
                 "memory_used_mb": round(gpu.memoryUsed, 1),
                 "memory_total_mb": round(gpu.memoryTotal, 1),
                 "memory_percent": round(gpu.memoryUsed / gpu.memoryTotal * 100, 1),
-                "temperature": gpu.temperature,
+                "temperature": temp_val,
                 "sm_utilization": None,
                 "tensor_core_active": None,
                 "power_draw_w": None,
             }
             if PYNVML_AVAILABLE:
-                self._enrich_with_nvml(result)
+                self._enrich_with_nvml(result, partial_failures)
+            if partial_failures:
+                result["gpu_partial_failure_reasons"] = partial_failures
             return (result, None)
         except PermissionError:
             return (None, "permission_error")
@@ -83,23 +93,32 @@ class GpuCollector(BaseCollector):
             return (None, "unknown")
 
     @staticmethod
-    def _enrich_with_nvml(result: Dict) -> None:
+    def _enrich_with_nvml(result: Dict, partial_failures: Optional[list] = None) -> None:
+        if partial_failures is None:
+            partial_failures = []
         try:
             handle = pynvml.nvmlDeviceGetHandleByIndex(0)
+        except Exception:
+            partial_failures.append("nvml_handle_unavailable")
+            return
+        # 각 NVML 호출 별 try/except — 일부 실패해도 나머지는 채운다.
+        try:
             util = pynvml.nvmlDeviceGetUtilizationRates(handle)
             result["sm_utilization"] = util.gpu
-            try:
-                result["power_draw_w"] = round(
-                    pynvml.nvmlDeviceGetPowerUsage(handle) / 1000, 1
-                )
-            except Exception:
-                pass
-            try:
-                fields = [pynvml.NVML_FI_DEV_TENSOR_ACTIVE]
-                values = pynvml.nvmlDeviceGetFieldValues(handle, fields)
-                if values and values[0].nvmlReturn == 0:
-                    result["tensor_core_active"] = values[0].value.uiVal
-            except Exception:
-                pass
         except Exception:
-            pass
+            partial_failures.append("sm_util_unavailable")
+        try:
+            result["power_draw_w"] = round(
+                pynvml.nvmlDeviceGetPowerUsage(handle) / 1000, 1
+            )
+        except Exception:
+            partial_failures.append("power_unavailable")
+        try:
+            fields = [pynvml.NVML_FI_DEV_TENSOR_ACTIVE]
+            values = pynvml.nvmlDeviceGetFieldValues(handle, fields)
+            if values and values[0].nvmlReturn == 0:
+                result["tensor_core_active"] = values[0].value.uiVal
+            else:
+                partial_failures.append("tensor_core_unavailable")
+        except Exception:
+            partial_failures.append("tensor_core_unavailable")
