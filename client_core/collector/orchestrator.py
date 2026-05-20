@@ -59,7 +59,12 @@ class CollectorOrchestrator:
 
         metrics = {
             "pc_id": self.pc_id,
-            "timestamp": datetime.datetime.now().isoformat(),
+            # timezone-aware ISO-8601 with offset. Spring's MetricsRequest
+            # binds this into OffsetDateTime, which rejects naive timestamps
+            # (returns HTTP 500 + Jackson parse error). astimezone() with no
+            # argument uses the host's local TZ, so the offset is whatever
+            # the runtime is configured for (KST=+09:00 in our case).
+            "timestamp": datetime.datetime.now().astimezone().isoformat(),
             "cpu_percent": cpu_mem["cpu_percent"],
             "cpu_core_count": cpu_mem["cpu_core_count"],
             "memory_percent": cpu_mem["memory_percent"],
