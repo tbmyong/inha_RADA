@@ -50,12 +50,36 @@ class ContextDiscounts:
 
 
 @dataclass(frozen=True)
+class CategoryPatterns:
+    """category_patterns YAML section (resource/network/system 그룹).
+
+    각 그룹은 {pattern_name: {threshold: {...}, enabled?: bool}} 의 dict.
+    """
+    raw: Dict[str, Any] = field(default_factory=dict)
+
+    def group(self, name: str) -> Dict[str, Any]:
+        v = self.raw.get(name) or {}
+        return v if isinstance(v, dict) else {}
+
+
+@dataclass(frozen=True)
+class Gating:
+    raw: Dict[str, Any] = field(default_factory=dict)
+
+    def get(self, tier: str) -> Dict[str, Any]:
+        v = self.raw.get(tier) or {}
+        return v if isinstance(v, dict) else {}
+
+
+@dataclass(frozen=True)
 class ScoringPolicy:
     version: str
     thresholds: Thresholds
     limits: Limits
     scores: Scores
     context_discounts: ContextDiscounts
+    category_patterns: CategoryPatterns = field(default_factory=CategoryPatterns)
+    gating: Gating = field(default_factory=Gating)
 
 
 @dataclass(frozen=True)
@@ -115,6 +139,10 @@ def load_scoring_policy() -> ScoringPolicy:
         ),
         scores=Scores(raw=dict(data["scores"])),
         context_discounts=ContextDiscounts(raw=dict(data["context_discounts"])),
+        category_patterns=CategoryPatterns(
+            raw=dict(data.get("category_patterns") or {})
+        ),
+        gating=Gating(raw=dict(data.get("gating") or {})),
     )
     _scoring_policy_cache = policy
     return policy
@@ -184,6 +212,8 @@ __all__ = [
     "Limits",
     "Scores",
     "ContextDiscounts",
+    "CategoryPatterns",
+    "Gating",
     "AllowList",
     "load_scoring_policy",
     "load_allowlist",
