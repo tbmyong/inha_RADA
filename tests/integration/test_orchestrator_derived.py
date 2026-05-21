@@ -25,6 +25,9 @@ _DERIVED_KEYS = {
     # F5 — collector 미수신 사유 (수집 실패 vs 실제 0 분리)
     "network_collection_missing_reason",
     "process_collection_missing_reason",
+    # Cryptojacking 탐지 system pattern (S1) — Windows GetLastInputInfo
+    "user_idle_ms",
+    "user_idle_collection_missing_reason",
 }
 
 # 22키 중 sender가 채우는 2개(local_alerts, boxplot_signal) 제외 → 20키
@@ -50,14 +53,14 @@ def test_22_core_keys_preserved():
         assert k in metrics, f"missing core key: {k}"
 
 
-def test_derived_features_present_with_16_keys():
+def test_derived_features_present_with_18_keys():
     orch = _build_fast_orchestrator()
     metrics = orch.collect()
     assert "derived_features" in metrics
     df = metrics["derived_features"]
     assert isinstance(df, dict)
-    # F5 — 14 + network_/process_collection_missing_reason = 16
-    assert len(df) == 16
+    # 16 (F5 까지) + user_idle_ms + user_idle_collection_missing_reason = 18
+    assert len(df) == 18
     assert set(df.keys()) == _DERIVED_KEYS
 
 

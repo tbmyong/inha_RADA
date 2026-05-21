@@ -89,6 +89,14 @@ class CollectorOrchestrator:
         network_reason = network.get("network_collection_missing_reason")
         process_reason = getattr(self.process, "last_missing_reason", None)
 
+        # user idle (cryptojacking 의 "사용자 inactive 인데 자원 풀가동" 패턴 잡기 위함).
+        # Windows GetLastInputInfo. 다른 OS 는 missing_reason.
+        try:
+            from . import system_idle as _idle_mod
+            idle_ms, idle_reason = _idle_mod.collect()
+        except Exception as exc:  # pragma: no cover - defensive
+            idle_ms, idle_reason = None, f"import_failed:{type(exc).__name__}"
+
         # derived_features — partial failure 도 허용. 가능한 키는 최대한 채우고,
         # 실패한 sub-block 만 missing_reason 으로 표시한다.
         derived: Dict = {
@@ -97,6 +105,8 @@ class CollectorOrchestrator:
             "gpu_metrics_missing_reason": gpu_reason,
             "network_collection_missing_reason": network_reason,
             "process_collection_missing_reason": process_reason,
+            "user_idle_ms": idle_ms,
+            "user_idle_collection_missing_reason": idle_reason,
         }
         derived_missing_reasons: Dict[str, str] = {}
 
