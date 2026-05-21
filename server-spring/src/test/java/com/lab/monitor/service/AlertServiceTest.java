@@ -407,6 +407,116 @@ class AlertServiceTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void category_signals_merged_into_scores_jsonb_when_present() {
+        Map<String, Object> scores = Map.of("cpu", 0.5);
+        Map<String, Object> categorySignals = Map.of(
+                "resource_abnormal", true,
+                "network_abnormal", false,
+                "system_abnormal", false,
+                "sustained_minutes", 7,
+                "triggered_patterns", List.of("cpu_sustained_high"),
+                "verdict_from_gating", "DANGEROUS");
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("HIGH")
+                .verdict("DANGEROUS")
+                .scores(scores)
+                .categorySignals(categorySignals)
+                .build();
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(301L); return ah; });
+
+        service.handle(resp, "pc-cs");
+
+        ArgumentCaptor<AnomalyHistory> a = ArgumentCaptor.forClass(AnomalyHistory.class);
+        verify(alertRepository).save(a.capture());
+        Map<String, Object> saved = a.getValue().getScores();
+        assertThat(saved).containsKey("category_signals");
+        Map<String, Object> savedCs = (Map<String, Object>) saved.get("category_signals");
+        assertThat(savedCs).containsEntry("resource_abnormal", true);
+        assertThat(savedCs).containsEntry("sustained_minutes", 7);
+        assertThat(savedCs).containsEntry("verdict_from_gating", "DANGEROUS");
+        List<String> patterns = (List<String>) savedCs.get("triggered_patterns");
+        assertThat(patterns).containsExactly("cpu_sustained_high");
+        // original scores key preserved
+        assertThat(saved).containsEntry("cpu", 0.5);
+    }
+
+    @Test
+    void category_signals_absent_leaves_scores_untouched() {
+        Map<String, Object> scores = Map.of("cpu", 0.5);
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("HIGH")
+                .verdict("DANGEROUS")
+                .scores(scores)
+                .build();
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(302L); return ah; });
+
+        service.handle(resp, "pc-cs-none");
+
+        ArgumentCaptor<AnomalyHistory> a = ArgumentCaptor.forClass(AnomalyHistory.class);
+        verify(alertRepository).save(a.capture());
+        assertThat(a.getValue().getScores()).doesNotContainKey("category_signals");
+        assertThat(a.getValue().getScores()).containsEntry("cpu", 0.5);
+    }
+
+    @Test
+    void category_signals_empty_leaves_scores_untouched() {
+        Map<String, Object> scores = Map.of("cpu", 0.5);
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("HIGH")
+                .verdict("DANGEROUS")
+                .scores(scores)
+                .categorySignals(Map.of())
+                .build();
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(303L); return ah; });
+
+        service.handle(resp, "pc-cs-empty");
+
+        ArgumentCaptor<AnomalyHistory> a = ArgumentCaptor.forClass(AnomalyHistory.class);
+        verify(alertRepository).save(a.capture());
+        assertThat(a.getValue().getScores()).doesNotContainKey("category_signals");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void retrieval_evidence_signals_missing_category_signals_all_three_preserved_together() {
+        Map<String, Object> scores = Map.of("cpu", 0.9);
+        Map<String, Object> evidence = Map.of("retrieval_score", 2, "peer_mismatch", false);
+        Map<String, Object> categorySignals = Map.of(
+                "resource_abnormal", true,
+                "verdict_from_gating", "OBSERVE");
+
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("HIGH")
+                .verdict("DANGEROUS")
+                .scores(scores)
+                .retrievalEvidence(evidence)
+                .signalsMissing(List.of("network"))
+                .categorySignals(categorySignals)
+                .build();
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(304L); return ah; });
+
+        service.handle(resp, "pc-triple");
+
+        ArgumentCaptor<AnomalyHistory> a = ArgumentCaptor.forClass(AnomalyHistory.class);
+        verify(alertRepository).save(a.capture());
+        Map<String, Object> saved = a.getValue().getScores();
+        assertThat(saved).containsKey("retrieval_evidence");
+        assertThat(saved).containsKey("signals_missing");
+        assertThat(saved).containsKey("category_signals");
+        assertThat(saved).containsEntry("cpu", 0.9);
+        assertThat((Map<String, Object>) saved.get("retrieval_evidence"))
+                .containsEntry("retrieval_score", 2);
+        assertThat((List<String>) saved.get("signals_missing")).containsExactly("network");
+        assertThat((Map<String, Object>) saved.get("category_signals"))
+                .containsEntry("verdict_from_gating", "OBSERVE");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void score_breakdown_final_can_be_negative_after_context_discount() {
         Map<String, Object> breakdown = Map.of(
                 "resource", 0.10,

@@ -139,6 +139,36 @@ class MlResponseContractTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void category_signals_block_deserializes_into_map() throws IOException {
+        String json = "{\"overall_severity\":\"HIGH\",\"verdict\":\"DANGEROUS\"," +
+                "\"category_signals\":{" +
+                "\"resource_abnormal\":true," +
+                "\"network_abnormal\":false," +
+                "\"system_abnormal\":false," +
+                "\"sustained_minutes\":7," +
+                "\"triggered_patterns\":[\"cpu_sustained_high\",\"mem_leak\"]," +
+                "\"verdict_from_gating\":\"DANGEROUS\"" +
+                "}}";
+        MlResponse mapped = mapper.readValue(json, MlResponse.class);
+        assertThat(mapped.getCategorySignals()).isNotNull();
+        assertThat(mapped.getCategorySignals()).containsEntry("resource_abnormal", true);
+        assertThat(mapped.getCategorySignals()).containsEntry("network_abnormal", false);
+        assertThat(mapped.getCategorySignals()).containsEntry("sustained_minutes", 7);
+        assertThat(mapped.getCategorySignals()).containsEntry("verdict_from_gating", "DANGEROUS");
+        java.util.List<String> patterns =
+                (java.util.List<String>) mapped.getCategorySignals().get("triggered_patterns");
+        assertThat(patterns).containsExactly("cpu_sustained_high", "mem_leak");
+    }
+
+    @Test
+    void category_signals_absent_is_null() throws IOException {
+        String json = "{\"overall_severity\":\"NORMAL\",\"verdict\":\"SAFE\"}";
+        MlResponse mapped = mapper.readValue(json, MlResponse.class);
+        assertThat(mapped.getCategorySignals()).isNull();
+    }
+
+    @Test
     void unknown_keys_are_ignored() throws IOException {
         String json = "{\"overall_severity\":\"NORMAL\",\"verdict\":\"SAFE\"," +
                 "\"future_field\":\"ignored\"," +

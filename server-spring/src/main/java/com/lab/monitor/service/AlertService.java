@@ -48,7 +48,8 @@ public class AlertService {
                 .message(resp.getMessage())
                 .scores(mergeAuditExtras(resp.getScores(),
                         resp.getRetrievalEvidence(),
-                        resp.getSignalsMissing()))
+                        resp.getSignalsMissing(),
+                        resp.getCategorySignals()))
                 .alerts(resp.getAlerts())
                 .build();
         AnomalyHistory saved = alertRepository.save(anomaly);
@@ -120,9 +121,23 @@ public class AlertService {
     static Map<String, Object> mergeAuditExtras(Map<String, Object> scores,
                                                 Map<String, Object> retrievalEvidence,
                                                 List<String> signalsMissing) {
+        return mergeAuditExtras(scores, retrievalEvidence, signalsMissing, null);
+    }
+
+    /**
+     * Merge retrieval_evidence + signals_missing + category_signals into the scores
+     * JSONB. Always returns a mutable copy when any extra is present so the caller-
+     * supplied scores map (potentially {@code Map.of(...)}) is not mutated. Returns
+     * the original scores reference when all extras are null/empty.
+     */
+    static Map<String, Object> mergeAuditExtras(Map<String, Object> scores,
+                                                Map<String, Object> retrievalEvidence,
+                                                List<String> signalsMissing,
+                                                Map<String, Object> categorySignals) {
         boolean hasEvidence = retrievalEvidence != null && !retrievalEvidence.isEmpty();
         boolean hasMissing = signalsMissing != null && !signalsMissing.isEmpty();
-        if (!hasEvidence && !hasMissing) {
+        boolean hasCategory = categorySignals != null && !categorySignals.isEmpty();
+        if (!hasEvidence && !hasMissing && !hasCategory) {
             return scores;
         }
         Map<String, Object> merged = new LinkedHashMap<>();
@@ -134,6 +149,9 @@ public class AlertService {
         }
         if (hasMissing) {
             merged.put("signals_missing", signalsMissing);
+        }
+        if (hasCategory) {
+            merged.put("category_signals", categorySignals);
         }
         return merged;
     }

@@ -51,4 +51,13 @@ public class MlResponse {
      * in dashboards instead of being misread as "real zero" / NORMAL.
      */
     private List<String> signalsMissing;
+    /**
+     * Category gating signals emitted by the ML server (snake: {@code category_signals}).
+     * Includes per-category abnormal flags (resource_abnormal / network_abnormal /
+     * system_abnormal), sustained_minutes, triggered_patterns list, and
+     * verdict_from_gating. Persisted verbatim into
+     * {@code anomaly_history.scores->'category_signals'} for audit / Grafana.
+     * May be null on older ML deployments.
+     */
+    private Map<String, Object> categorySignals;
 }
