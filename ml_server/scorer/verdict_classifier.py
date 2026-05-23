@@ -172,9 +172,23 @@ def analyze_pattern(metrics: MetricsRequest, history: deque, slot: str,
         is_gaming, is_compiling,
     )
 
-    overall = ("HIGH"   if any(a["severity"]=="HIGH"   for a in alerts) else
-               "MEDIUM" if any(a["severity"]=="MEDIUM" for a in alerts) else
-               "LOW"    if any(a["severity"]=="LOW"    for a in alerts) else "NORMAL")
+    # P0-2 (docs/fp_field_analysis_v0.6.md §7-P0-2):
+    # overall_severity 는 engine verdict 가 진실. alert 의 severity 가
+    # 자체적으로 overall_severity 를 강제 승격하지 못한다 (=local alert
+    # override 제거). 707건의 severity↔verdict 불일치 (MEDIUM/NORMAL
+    # 404 + HIGH/OBSERVE 155 등) 의 원인.
+    #
+    # Fast-path 보존: classify_verdict 가 이미 mining_known + indicators
+    # ["process"] 를 본다. xmrig 같은 명백한 mining 은 verdict=HIGH_RISK
+    # 로 분류되므로 이 매핑만으로 자동 HIGH 가 된다. 별도 fast-path 분기
+    # 불필요.
+    _VERDICT_TO_SEVERITY = {
+        "HIGH_RISK":  "HIGH",
+        "SUSPICIOUS": "MEDIUM",
+        "OBSERVE":    "LOW",
+        "NORMAL":     "NORMAL",
+    }
+    overall = _VERDICT_TO_SEVERITY.get(verdict, "NORMAL")
 
     try:
         policy_version = get_scoring_policy().version

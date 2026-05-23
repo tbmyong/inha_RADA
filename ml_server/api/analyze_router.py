@@ -198,7 +198,10 @@ def analyze(metrics: MetricsRequest):
         except Exception:
             pass
 
-    # 전체 PC 노후화
+    # 전체 PC 노후화 — alert 로만 첨부, overall_severity 변경 X.
+    # P0-2 (docs/fp_field_analysis_v0.6.md §7-P0-2): alert evidence 가
+    # severity 를 강제 승격하지 못한다. GLOBAL_HW_DEGRADATION 은 운영
+    # 관찰용 evidence 로만 보존.
     global_hw = detect_global_hw_degradation()
     if global_hw.get("detected"):
         pattern_result["alerts"].append({
@@ -206,8 +209,6 @@ def analyze(metrics: MetricsRequest):
             "severity": "MEDIUM",
             "detail":   global_hw["detail"],
         })
-        if pattern_result["overall_severity"] == "NORMAL":
-            pattern_result["overall_severity"] = "MEDIUM"
 
     # AI Agent
     agent_result = None
