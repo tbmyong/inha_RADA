@@ -38,6 +38,17 @@ public class AlertService {
                 || "NORMAL".equalsIgnoreCase(resp.getOverallSeverity())) {
             return;
         }
+        // P0-1 (docs/fp_field_analysis_v0.6.md §7-P0-1): do not persist
+        // verdict=OBSERVE & severity=LOW. Those are weak signals that
+        // flooded anomaly_history (3,330/4,853 rows in field data, 68.6%)
+        // without operator value. Stage 1 — Spring-side filter only, ML
+        // response unchanged. Stage 2 (later PR) — ML emits an explicit
+        // should_persist=false hint.
+        if ("LOW".equalsIgnoreCase(resp.getOverallSeverity())
+                && "OBSERVE".equalsIgnoreCase(resp.getVerdict())) {
+            log.debug("P0-1 skip: LOW/OBSERVE not persisted pcId={}", pcId);
+            return;
+        }
         OffsetDateTime now = OffsetDateTime.now();
 
         AnomalyHistory anomaly = AnomalyHistory.builder()

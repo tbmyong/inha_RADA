@@ -46,6 +46,66 @@ class AlertServiceTest {
         verify(aiJudgmentRepository, never()).save(any());
     }
 
+    /**
+     * P0-1 (docs/fp_field_analysis_v0.6.md §7-P0-1): LOW/OBSERVE is weak
+     * signal and must not persist. Field data showed 3,330/4,853 rows
+     * (68.6%) were LOW/OBSERVE under normal usage — they flood the
+     * anomaly_history table without operator value.
+     */
+    @Test
+    void low_observe_does_not_persist() {
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("LOW")
+                .verdict("OBSERVE")
+                .build();
+        service.handle(resp, "pc-1");
+        verify(alertRepository, never()).save(any());
+        verify(aiJudgmentRepository, never()).save(any());
+    }
+
+    @Test
+    void low_observe_case_insensitive_does_not_persist() {
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("low")
+                .verdict("observe")
+                .build();
+        service.handle(resp, "pc-1");
+        verify(alertRepository, never()).save(any());
+    }
+
+    /**
+     * Negative — non-LOW severity with OBSERVE verdict is *not* skipped
+     * by P0-1. Those mismatches (e.g. MEDIUM/OBSERVE, HIGH/OBSERVE) are
+     * the target of P0-2 in a separate PR.
+     */
+    @Test
+    void medium_observe_still_persists_for_now() {
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("MEDIUM")
+                .verdict("OBSERVE")
+                .build();
+        AnomalyHistory saved = AnomalyHistory.builder().id(99L).build();
+        when(alertRepository.save(any(AnomalyHistory.class))).thenReturn(saved);
+        service.handle(resp, "pc-1");
+        verify(alertRepository).save(any());
+    }
+
+    /**
+     * Negative — LOW with non-OBSERVE verdict (e.g. LOW/SUSPICIOUS, if
+     * that ever surfaces) is *not* skipped by P0-1.
+     */
+    @Test
+    void low_non_observe_still_persists() {
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("LOW")
+                .verdict("SUSPICIOUS")
+                .build();
+        AnomalyHistory saved = AnomalyHistory.builder().id(99L).build();
+        when(alertRepository.save(any(AnomalyHistory.class))).thenReturn(saved);
+        service.handle(resp, "pc-1");
+        verify(alertRepository).save(any());
+    }
+
     @Test
     void high_overall_severity_persists_anomaly_and_5field_judgment() {
         MlResponse resp = MlResponse.builder()
@@ -183,10 +243,18 @@ class AlertServiceTest {
         assertThat(j.getValue().getDetails()).containsEntry("hw_degradation", value);
     }
 
+    /**
+     * Originally validated that LOW/OBSERVE was persisted. P0-1 reverses
+     * that policy (see {@link #low_observe_does_not_persist()}). To keep
+     * coverage of the OBSERVE-verdict path that should still persist,
+     * the fixture now uses severity=MEDIUM (which §3-B's HIGH/OBSERVE
+     * mismatch will be the target of P0-2 in a separate PR, but
+     * MEDIUM/OBSERVE persistence is still the current behaviour).
+     */
     @Test
-    void observe_verdict_with_low_severity_is_persisted() {
+    void observe_verdict_with_medium_severity_is_persisted() {
         MlResponse resp = MlResponse.builder()
-                .overallSeverity("LOW")
+                .overallSeverity("MEDIUM")
                 .verdict("OBSERVE")
                 .message("baseline drift")
                 .agent(AgentJudgmentDto.builder()
@@ -202,7 +270,7 @@ class AlertServiceTest {
 
         ArgumentCaptor<AnomalyHistory> a = ArgumentCaptor.forClass(AnomalyHistory.class);
         verify(alertRepository).save(a.capture());
-        assertThat(a.getValue().getSeverity()).isEqualTo("LOW");
+        assertThat(a.getValue().getSeverity()).isEqualTo("MEDIUM");
         assertThat(a.getValue().getAnomalyType()).isEqualTo("OBSERVE");
 
         ArgumentCaptor<AiJudgmentHistory> j = ArgumentCaptor.forClass(AiJudgmentHistory.class);
@@ -222,7 +290,7 @@ class AlertServiceTest {
                 "score_breakdown", breakdown);
 
         MlResponse resp = MlResponse.builder()
-                .overallSeverity("LOW")
+                .overallSeverity("MEDIUM")
                 .verdict("OBSERVE")
                 .scores(scores)
                 .build();
@@ -255,7 +323,7 @@ class AlertServiceTest {
         Map<String, Object> scores = Map.of("score_breakdown", breakdown);
 
         MlResponse resp = MlResponse.builder()
-                .overallSeverity("LOW")
+                .overallSeverity("MEDIUM")
                 .verdict("OBSERVE")
                 .scores(scores)
                 .build();
@@ -530,7 +598,7 @@ class AlertServiceTest {
         Map<String, Object> scores = Map.of("score_breakdown", breakdown);
 
         MlResponse resp = MlResponse.builder()
-                .overallSeverity("LOW")
+                .overallSeverity("MEDIUM")
                 .verdict("OBSERVE")
                 .scores(scores)
                 .build();
