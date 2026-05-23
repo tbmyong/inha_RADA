@@ -266,6 +266,49 @@ HIGH 진입 조건:
 - `server-spring/.../dto/MlResponse.java` — `evidenceMeta` 필드 추가
 - `server-spring/.../service/AlertService.java` — scores JSONB 에 병합 (R1, category_signals 와 동일 패턴)
 
+#### ⚠️ Gating 도입 부작용 — score 와 verdict 의 분리
+
+P0-3 가 적용된 후 **`scores.final` 은 원래 점수를 유지하지만, gating 차단 시 verdict / overall_severity 는 낮아진다**. 예시:
+
+| 케이스 | scores.final | verdict | overall_severity | evidence_meta.promotion_gated |
+|---|---|---|---|---|
+| 정상 mining 탐지 (4 signals, 2 categories) | 14.5 | HIGH_RISK | HIGH | false |
+| 단일 신호 burst (1 signal) | 12.0 | OBSERVE | LOW | **true** |
+| Fast-path (xmrig) | 22.0 | HIGH_RISK | HIGH | false (`fast_path:mining_known`) |
+
+→ **점수가 12 인데 severity 가 LOW** 인 경우가 정상 동작 (gating 의도). 감사 관점은 OK 지만, **대시보드 / 운영 화면에서 `scores.final` 만 보면 운영자가 혼란**.
+
+**필수 룰 — Grafana 패널 / 운영 SQL 작성 시**:
+
+1. **`scores.final` 표시하는 모든 패널**은 동일 row 의 `scores.evidence_meta.promotion_gated` 와 `promotion_reason` 을 함께 노출 (table column / tooltip / 색상 등)
+2. **점수 정렬/필터 패널**은 `promotion_gated = false` 조건으로 정렬 또는 별도 카테고리 분리
+3. **PC 별 위험도 ranking** 같은 패널은 verdict 우선 (HIGH_RISK / SUSPICIOUS / OBSERVE / NORMAL) 정렬 후 `scores.final` 은 보조 지표
+
+Grafana 패널 예시 (권장 SQL):
+```sql
+SELECT
+  pc_id,
+  detected_at,
+  severity,
+  anomaly_type AS verdict,
+  scores->>'final' AS raw_score,
+  -- 운영자 시점: gated 여부 + 사유 같이 보여주기
+  scores->'evidence_meta'->>'promotion_gated' AS gated,
+  scores->'evidence_meta'->>'promotion_reason' AS reason,
+  scores->'evidence_meta'->>'fast_path_match'  AS fast_path
+FROM pc_monitor.anomaly_history
+WHERE detected_at > NOW() - INTERVAL '1 hour'
+ORDER BY
+  CASE severity
+    WHEN 'HIGH'   THEN 0
+    WHEN 'MEDIUM' THEN 1
+    WHEN 'LOW'    THEN 2
+    ELSE 3 END,
+  (scores->>'final')::float DESC;
+```
+
+→ `promotion_gated = true` 인 row 가 점수 높아도 severity LOW 라는 게 표 한 줄로 명확히 보임.
+
 ### P1-1: Local Alert → Evidence Only
 
 ```

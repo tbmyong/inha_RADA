@@ -239,9 +239,17 @@ git push origin --delete feat/<my-short-desc>
 - 동일 dashboard JSON 을 여러 명이 수정하면 거의 항상 충돌.
 - 가능하면 **새 dashboard 파일** 로 분리. `rada-main.json` 직접 수정은 자제.
 
+**필수 룰 — P0-3 (gating) 이후 score / verdict 분리 표시**
+
+P0-3 도입 후 `scores.final` 과 `verdict` / `overall_severity` 가 일치하지 않을 수 있다. 예: `scores.final = 12` 인데 gating 차단으로 `verdict = OBSERVE / severity = LOW`. 운영자가 점수만 보면 혼란 → **`scores.final` 표시하는 모든 패널에서 `evidence_meta.promotion_gated` + `promotion_reason` 같이 노출**.
+
+상세 규칙 + 권장 SQL 은 [`docs/fp_field_analysis_v0.6.md`](fp_field_analysis_v0.6.md) §7-P0-3 의 "Gating 도입 부작용" 절 참고.
+
 **PR 전 체크리스트**:
 - [ ] `docker compose restart grafana` 후 패널 정상 로드 확인
 - [ ] datasource UID `rada_pg` / `rada_spring` 만 사용
+- [ ] **`scores.final` 표시 패널에 `promotion_gated` + `promotion_reason` 동반 노출**
+- [ ] 점수 기준 정렬 패널은 `promotion_gated = false` 필터 또는 verdict 우선 정렬
 - [ ] PR 에 패널 스크린샷 첨부
 
 ### 4-3. 클라이언트 / 수집 담당
