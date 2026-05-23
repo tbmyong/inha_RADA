@@ -125,24 +125,24 @@ OBSERVE_DOS                       4
 
 ## 6. Trigger Context — 게임 업데이트 / 플레이 가설
 
-특정 시간 spike 분석:
+DB 재확인 결과 최고 위험 spike 5건은 모두 **2026-05-23** 새벽 (자정 이후) 시점이다. anomaly_type=HIGH_RISK 5건 전부 다음 두 시점에 집중:
 
 ```
-2026-05-22 03:57 ~ 03:58
+2026-05-23 03:58:07
+  → final = 14.0, alert_count = 4
   - memory 95~96%
   - gpu_active
   - unknown_process_active
   - net_external_high
   - ml_anomaly
   - stealth_mismatch_power
-  → severity=HIGH 분류
 
-2026-05-22 04:14
+2026-05-23 04:14:21 ~ 04:14:36  (5초 간격 4건 연속)
+  → final = 14.33 → 15.27 (점진 상승)
   - inbound 급증
   - dos_spike
   - persistent_ext
   - spike_count_1m
-  → severity=HIGH 분류
 ```
 
 → 자정 이후 게임 업데이트 / 플레이 동시 발생 추정 시나리오:
@@ -165,9 +165,17 @@ OBSERVE_DOS                       4
 
 **효과**: anomaly_history 총량 4,853 → 1,523 (3,330 감소, 68.6% 압축). 운영 알람 가시화 노이즈 대폭 감소.
 
-**구현 위치**:
-- `server-spring/.../service/AlertService.java` — verdict=OBSERVE AND severity=LOW 인 경우 저장 skip
-- 또는 ML 응답에 `should_persist: false` 플래그 추가 후 Spring 이 존중
+**구현 — 2단계 권장 (side effect 최소화)**:
+
+1차 (먼저, 안전):
+- `server-spring/.../service/AlertService.java` 에서 `verdict=OBSERVE AND severity=LOW` 인 경우 anomaly_history 저장 skip
+- ML 응답 형식은 그대로 — `LOW/OBSERVE` 라는 결과 자체는 계속 받음 (운영자 디버그용)
+
+2차 (1차 검증 후):
+- ML 응답에 `should_persist: false` 플래그 추가 (verdict=OBSERVE & severity=LOW 시)
+- Spring 이 이 플래그를 존중 — 명시적 contract 화
+
+→ 1차만 적용해도 3,330건 즉시 정리. ML verdict 결정 자체를 건드리지 않으므로 다른 영역 (점수, retrieval, 카테고리 게이팅) 회귀 0. 2차는 운영 한 학기 후.
 
 ### P0-2: Severity ↔ Verdict 매핑 일관성 강제
 
@@ -204,17 +212,59 @@ HIGH 진입 조건:
   final_score ≥ high_threshold  (기존)
   AND active_signal_count ≥ 4
   AND category_count ≥ 2
-
-예외 (fast-path):
-  - mining_known process+port hit
-  - confirmed mining sustained 3h+ (이미 v0.6 의 category gating)
 ```
 
-**효과**: 단일 신호 trigger 차단. MEDIUM 948건 중 alert 1개 케이스는 LOW 로 강등 또는 미저장.
+#### Fast-path 예외 (필수)
+
+기계적 gating 만 적용하면 **단순하지만 명확한 mining 을 놓칠 수 있다**. 다음 fast-path 들은 신호 수 / 카테고리 수 무관하게 즉시 HIGH 로 분류:
+
+| Fast-path | 근거 | signal_count 1~2 라도 즉시 HIGH |
+|---|---|---|
+| **Known miner process** | `process_name ∈ {xmrig, nanominer, t-rex, lolminer, ...}` allowlist 외 | ✓ |
+| **Mining pool port + process** | port 3333/4444/7777/... + 외부 IP | ✓ |
+| **Suspicious path + outbound** | `/tmp`, `%TEMP%`, `%APPDATA%\Local\Temp` 실행 + 외부 통신 | ✓ |
+| **Confirmed mining sustained** | v0.6 의 category gating 3 카테고리 + 3h | ✓ |
+| **Cmdline 의 `stratum+tcp`** | Stratum 프로토콜 명시 | ✓ |
+
+→ Gating 은 **stealth mining / 이름 위장 mining** 에만 적용. 명백한 mining 시그니처는 그대로 즉시 HIGH.
+
+**효과**: 단일 신호 trigger 차단. MEDIUM 948건 중 alert 1개 케이스는 LOW 로 강등 또는 미저장. Fast-path 보존으로 mining 탐지력 유지.
 
 **구현 위치**:
 - `ml_server/scorer/verdict_classifier.py` — 분류 직전 gating check 추가
-- `ml_server/config_yaml/scoring_policy.yaml` v0.7 — gating 임계 정의
+- `ml_server/config_yaml/scoring_policy.yaml` v0.7 — gating 임계 정의 + fast-path 예외 명시
+
+#### evidence_meta 응답 구조 (운영 / 검증용)
+
+지금은 alert.detail 안에 `활성신호=[...]` 문자열로 들어가 있어 SQL 로 파싱 어려움. Gating 도입과 함께 **응답 top-level 에 구조화된 evidence_meta** 추가 권장:
+
+```json
+{
+  "scores": { ... },
+  "category_signals": { ... },
+  "evidence_meta": {                                    // ← NEW
+    "active_signal_count": 5,
+    "category_count": 3,
+    "active_categories": ["resource", "network", "ml"],
+    "active_signals": ["cpu_flat", "net_out_sustained", "gpu_high", "mem_high", "ml_anomaly"],
+    "promotion_gated": true,
+    "promotion_reason": "signal_count>=3 AND category_count>=2",
+    "fast_path_match": null
+  }
+}
+```
+
+→ Spring 이 이걸 `anomaly_history.scores` 의 `evidence_meta` 키로 보존하면, Grafana 가 단순 SQL 로:
+- "지난 24h gating 발화한 anomaly 비율"
+- "active_categories 분포"
+- "fast-path 발화 카운트 vs gating 발화 카운트"
+
+같은 정량 분석이 가능. 발표 시 "왜 이 anomaly 가 HIGH 인가" 설명에 직접 활용.
+
+**구현 위치**:
+- `ml_server/api/analyze_router.py` — 응답 형식 확장
+- `server-spring/.../dto/MlResponse.java` — `evidenceMeta` 필드 추가
+- `server-spring/.../service/AlertService.java` — scores JSONB 에 병합 (R1, category_signals 와 동일 패턴)
 
 ### P1-1: Local Alert → Evidence Only
 
@@ -286,15 +336,24 @@ HIGH 진입 조건:
 
 | 순서 | 작업 | 영향 (예상 row 정리) | 작업량 | Risk |
 |---|---|---|---|---|
-| **P0-1** LOW/OBSERVE 저장 안 함 | server-spring 1파일, 또는 ML 응답 + Spring 둘 다 | **3,330 (68.6%)** | 30분 | 낮음 (저장만 안 함, 처리 로직 무변경) |
+| **P0-1** LOW/OBSERVE 저장 안 함 (Spring filter 1차) | server-spring AlertService 1파일 | **3,330 (68.6%)** | 30분 | **낮음** (저장만 안 함, ML/scorer 무변경) |
 | **P0-2** Severity ↔ Verdict 매핑 강제 | ML + Spring 2파일 | 559건 (HIGH/OBSERVE 155 + MEDIUM/NORMAL 404) | 1시간 | 중간 (verdict 결정 로직 변경) |
-| **P0-3** 승격 Gating (signal count + category count) | scorer + policy.yaml | MEDIUM 948건 중 다수 | 1.5시간 | 중간 (놓치는 진짜 위험 우려 — 측정 필수) |
+| **P0-3** 승격 Gating (signal_count + category_count) + evidence_meta | scorer + policy.yaml + DTO 전파 | MEDIUM 948건 중 다수 | 2시간 (evidence_meta 포함) | 중간 (fast-path 예외 필수, 측정 필수) |
 | P1-1 Local alert → evidence only | Spring AlertService + 응답 형식 | 397건 (P0-2 와 부분 중복) | 1시간 | 낮음 |
 | P1-2 DOS / spike 절대값 floor | scorer + policy.yaml | DOS_SUSPECTED 의 절반 추정 | 30분 | 낮음 |
 | P1-3 Episode decay / dedupe | scorer + pc_history_store | spike 당 수십 건 → 1~3건으로 압축 | 1.5시간 | 중간 (dedupe 로직 복잡) |
 | P1-4 Retrieval positive gating | verdict_classifier 또는 retrieval_evidence | retrieval 단독 승격 케이스 차단 | 30분 | 낮음 |
 
-**총 작업량**: P0 3건 = 약 3시간 → 정상 사용 시 anomaly 4,853 → 약 600~800 (85%↓) 예상.
+**총 작업량**: P0 3건 = 약 3.5시간 → 정상 사용 시 anomaly 4,853 → 약 600~800 (85%↓) 예상.
+
+### 권장 머지 순서
+
+1. **P0-1 (Spring filter only) 먼저 작은 PR** — 3,330건 즉시 정리, ML 무변경이라 안전. 며칠 정상 데이터로 회귀 확인.
+2. **P0-2 별도 PR** — ML + Spring 양쪽 변경. P0-1 적용 후 안정 상태에서 진행해야 회귀 추적 쉬움.
+3. **P0-3 + evidence_meta 한 PR** — Gating 과 그 근거 데이터 같이 도입. 테스트로 fast-path 예외 검증 후 머지.
+4. P1 항목들은 P0 검증 끝나면 개별 PR.
+
+**작은 단위로 자주 머지**: P0-1 → P0-2 → P0-3 각각 별도 PR + 본인 PC 4h 측정 첨부.
 
 ---
 
@@ -328,7 +387,16 @@ HIGH 진입 조건:
 - P1-3 의 dedupe 는 **동일 원인 반복 spike** (예: 같은 사용자가 같은 게임 반복 실행) 가 한 번에 한 건으로 압축되므로 의도는 맞지만, **새 사고 발생을 못 잡는 위험**도 있음. cooldown 종료 후 재발화 보장 필요.
 
 ### 다음 측정 직전 확인할 것
-- `LOCAL_HW_CPU_DEGRADATION` 이 정확히 무엇을 잡는지 (`client_core/detector/hw_degradation.py` 코드 확인 필요). 정상 dev burst 면 거의 무조건 발화하는 구조라면 신호 자체 비활성화도 검토.
+
+#### LOCAL_HW_CPU_DEGRADATION — 별도 점검 필수 (308건 출처)
+
+`client_core/detector/hw_degradation.py` 의 발화 조건이 정상 dev burst 에도 거의 무조건 뜨는 구조라면:
+
+- **P0-2 (local alert → evidence only) 만으론 부족** — alert 가 evidence 로 옮겨가도 매 5초마다 발화하면 evidence_meta 가 noise 로 가득 참
+- **신호 자체 약화** 필요: 발화 임계 조건에 sustained 추가 (예: "CPU history 30분+ 일정 패턴 + 평소 baseline 대비 일정 deviation" 등)
+- 또는 **신호 비활성화** + 별도 PC 노후화 monitor (별도 dashboard) 로 분리
+
+이 점검은 P0 작업 시작 직전 별도 5~10분 분량의 작은 task. `hw_degradation.py` 의 발화 조건 + 5/22 ~ 5/23 의 740건 분포 확인.
 
 ---
 
