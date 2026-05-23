@@ -60,7 +60,8 @@ public class AlertService {
                 .scores(mergeAuditExtras(resp.getScores(),
                         resp.getRetrievalEvidence(),
                         resp.getSignalsMissing(),
-                        resp.getCategorySignals()))
+                        resp.getCategorySignals(),
+                        resp.getEvidenceMeta()))
                 .alerts(resp.getAlerts())
                 .build();
         AnomalyHistory saved = alertRepository.save(anomaly);
@@ -145,10 +146,26 @@ public class AlertService {
                                                 Map<String, Object> retrievalEvidence,
                                                 List<String> signalsMissing,
                                                 Map<String, Object> categorySignals) {
+        return mergeAuditExtras(scores, retrievalEvidence, signalsMissing,
+                categorySignals, null);
+    }
+
+    /**
+     * P0-3 overload — also merges {@code evidence_meta} (promotion gating
+     * audit block) into the scores JSONB. Same semantics: returns the
+     * original {@code scores} reference when ALL extras are null/empty,
+     * otherwise a mutable copy. See class javadoc for the full key set.
+     */
+    static Map<String, Object> mergeAuditExtras(Map<String, Object> scores,
+                                                Map<String, Object> retrievalEvidence,
+                                                List<String> signalsMissing,
+                                                Map<String, Object> categorySignals,
+                                                Map<String, Object> evidenceMeta) {
         boolean hasEvidence = retrievalEvidence != null && !retrievalEvidence.isEmpty();
         boolean hasMissing = signalsMissing != null && !signalsMissing.isEmpty();
         boolean hasCategory = categorySignals != null && !categorySignals.isEmpty();
-        if (!hasEvidence && !hasMissing && !hasCategory) {
+        boolean hasMeta = evidenceMeta != null && !evidenceMeta.isEmpty();
+        if (!hasEvidence && !hasMissing && !hasCategory && !hasMeta) {
             return scores;
         }
         Map<String, Object> merged = new LinkedHashMap<>();
@@ -163,6 +180,9 @@ public class AlertService {
         }
         if (hasCategory) {
             merged.put("category_signals", categorySignals);
+        }
+        if (hasMeta) {
+            merged.put("evidence_meta", evidenceMeta);
         }
         return merged;
     }

@@ -583,6 +583,126 @@ class AlertServiceTest {
                 .containsEntry("verdict_from_gating", "OBSERVE");
     }
 
+    /**
+     * P0-3 (docs/fp_field_analysis_v0.6.md §7-P0-3): evidence_meta block
+     * (promotion gating audit) must be preserved verbatim under
+     * scores.evidence_meta so Grafana can query gating outcomes by
+     * pure SQL.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void evidence_meta_merged_into_scores_jsonb_when_present() {
+        Map<String, Object> scores = Map.of("cpu", 0.5);
+        Map<String, Object> evidenceMeta = Map.of(
+                "active_signal_count", 5,
+                "category_count", 3,
+                "active_categories", List.of("resource", "network", "ml"),
+                "active_signals", List.of("cpu_flat", "net_out_sustained", "gpu_high", "mem_high", "ml_anomaly"),
+                "promotion_gated", false,
+                "promotion_reason", "gating_passed",
+                "fast_path_match", "mining_known");
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("HIGH")
+                .verdict("DANGEROUS")
+                .scores(scores)
+                .evidenceMeta(evidenceMeta)
+                .build();
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(401L); return ah; });
+
+        service.handle(resp, "pc-em");
+
+        ArgumentCaptor<AnomalyHistory> a = ArgumentCaptor.forClass(AnomalyHistory.class);
+        verify(alertRepository).save(a.capture());
+        Map<String, Object> saved = a.getValue().getScores();
+        assertThat(saved).containsKey("evidence_meta");
+        Map<String, Object> savedMeta = (Map<String, Object>) saved.get("evidence_meta");
+        assertThat(savedMeta).containsEntry("active_signal_count", 5);
+        assertThat(savedMeta).containsEntry("category_count", 3);
+        assertThat(savedMeta).containsEntry("promotion_gated", false);
+        assertThat(savedMeta).containsEntry("promotion_reason", "gating_passed");
+        assertThat(savedMeta).containsEntry("fast_path_match", "mining_known");
+        List<String> cats = (List<String>) savedMeta.get("active_categories");
+        assertThat(cats).containsExactly("resource", "network", "ml");
+        // original scores key preserved
+        assertThat(saved).containsEntry("cpu", 0.5);
+    }
+
+    @Test
+    void evidence_meta_absent_leaves_scores_untouched() {
+        Map<String, Object> scores = Map.of("cpu", 0.5);
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("HIGH")
+                .verdict("DANGEROUS")
+                .scores(scores)
+                .build();
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(402L); return ah; });
+
+        service.handle(resp, "pc-em-none");
+
+        ArgumentCaptor<AnomalyHistory> a = ArgumentCaptor.forClass(AnomalyHistory.class);
+        verify(alertRepository).save(a.capture());
+        assertThat(a.getValue().getScores()).doesNotContainKey("evidence_meta");
+        assertThat(a.getValue().getScores()).containsEntry("cpu", 0.5);
+    }
+
+    @Test
+    void evidence_meta_empty_leaves_scores_untouched() {
+        Map<String, Object> scores = Map.of("cpu", 0.5);
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("HIGH")
+                .verdict("DANGEROUS")
+                .scores(scores)
+                .evidenceMeta(Map.of())
+                .build();
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(403L); return ah; });
+
+        service.handle(resp, "pc-em-empty");
+
+        ArgumentCaptor<AnomalyHistory> a = ArgumentCaptor.forClass(AnomalyHistory.class);
+        verify(alertRepository).save(a.capture());
+        assertThat(a.getValue().getScores()).doesNotContainKey("evidence_meta");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void evidence_meta_coexists_with_retrieval_and_category_blocks() {
+        Map<String, Object> scores = Map.of("cpu", 0.9);
+        Map<String, Object> evidence = Map.of("retrieval_score", 2);
+        Map<String, Object> categorySignals = Map.of("verdict_from_gating", "OBSERVE");
+        Map<String, Object> evidenceMeta = new java.util.LinkedHashMap<>();
+        evidenceMeta.put("promotion_gated", true);
+        evidenceMeta.put("promotion_reason", "gating_blocked:medium(sig=2<3)");
+        evidenceMeta.put("fast_path_match", null);
+        evidenceMeta.put("active_signal_count", 2);
+        evidenceMeta.put("category_count", 1);
+
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("HIGH")
+                .verdict("DANGEROUS")
+                .scores(scores)
+                .retrievalEvidence(evidence)
+                .signalsMissing(List.of("network"))
+                .categorySignals(categorySignals)
+                .evidenceMeta(evidenceMeta)
+                .build();
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(404L); return ah; });
+
+        service.handle(resp, "pc-quad");
+
+        ArgumentCaptor<AnomalyHistory> a = ArgumentCaptor.forClass(AnomalyHistory.class);
+        verify(alertRepository).save(a.capture());
+        Map<String, Object> saved = a.getValue().getScores();
+        assertThat(saved).containsKeys(
+                "retrieval_evidence", "signals_missing",
+                "category_signals", "evidence_meta");
+        assertThat((Map<String, Object>) saved.get("evidence_meta"))
+                .containsEntry("promotion_gated", true);
+    }
+
     @Test
     @SuppressWarnings("unchecked")
     void score_breakdown_final_can_be_negative_after_context_discount() {

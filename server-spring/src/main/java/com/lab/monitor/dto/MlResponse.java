@@ -60,4 +60,16 @@ public class MlResponse {
      * May be null on older ML deployments.
      */
     private Map<String, Object> categorySignals;
+    /**
+     * P0-3 (docs/fp_field_analysis_v0.6.md §7-P0-3) — promotion gating evidence.
+     * Emitted by ML server (snake: {@code evidence_meta}). Keys include:
+     *   active_signal_count, category_count, active_categories (list),
+     *   active_signals (list), promotion_gated (bool), promotion_reason (str),
+     *   fast_path_match (nullable str: mining_known / confirmed_sustained /
+     *   alerts_contain_confirmed_mining).
+     * Persisted verbatim into {@code anomaly_history.scores->'evidence_meta'}
+     * so Grafana can query "promotion_gated true vs fast_path counts".
+     * May be null on older ML deployments (pre v0.7.0).
+     */
+    private Map<String, Object> evidenceMeta;
 }

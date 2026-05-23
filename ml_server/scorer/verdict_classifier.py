@@ -6,7 +6,7 @@ verdict 4단계 (CONFIRMED_MINING은 HIGH_RISK로 통합, alerts[0].type 으로 
   OBSERVE     : final_score >=  5
   NORMAL      : final_score <   5
 """
-from typing import Dict, Any, Tuple, List
+from typing import Dict, Any, Tuple, List, Optional
 from collections import deque
 
 from ..model.requests import MetricsRequest
@@ -15,6 +15,156 @@ from ..policy import get_scoring_policy
 from .signal_extractor import extract_signals
 from .indicator_calculator import calculate_indicators
 from .context_multiplier import apply_context_multiplier
+
+
+# P0-3 (docs/fp_field_analysis_v0.6.md §7-P0-3): score_breakdown 9키 중
+# 어떤 키가 "카테고리" 로서 active_categories 산출에 쓰이는지.
+# context_discount / final 은 카테고리가 아니므로 제외.
+_BREAKDOWN_CATEGORY_KEYS = (
+    "resource", "network", "process", "episode",
+    "correlation", "ml", "retrieval",
+)
+
+# 신호 → 카테고리 매핑 (active_categories 산출용). signal_extractor 의
+# signal 이름을 breakdown 의 카테고리 키로 묶는다. is_gaming/is_compiling 은
+# context flag 이므로 제외.
+_SIGNAL_TO_CATEGORY: Dict[str, str] = {
+    # resource
+    "gpu_active": "resource", "gpu_high": "resource", "gpu_flat": "resource",
+    "gpu_cpu_gap": "resource", "vram_low": "resource", "vram_stable": "resource",
+    "power_stable": "resource", "tensor_inactive": "resource", "sm_high": "resource",
+    "stealth_mismatch_power": "resource", "stealth_mismatch_vram": "resource",
+    "cpu_high": "resource", "cpu_flat": "resource",
+    "mem_high": "resource", "mem_critical": "resource",
+    # network
+    "net_external_high": "network", "mining_pool_ip": "network",
+    "outbound_spike": "network", "dos_spike": "network",
+    "net_out_sustained": "network", "disk_write_net_out_sustained": "network",
+    "new_remote_ip_burst": "network", "spike_count_1m": "network",
+    "persistent_ext": "network",
+    # process
+    "known_miner": "process", "temp_exec": "process", "appdata_exec": "process",
+    "exec_path_suspicious": "process", "unknown_process_active": "process",
+    "persistent_miner": "process", "mining_process_or_pool": "process",
+    # ml
+    "ml_anomaly": "ml",
+}
+
+
+def _build_evidence_meta(signals: Dict[str, Any],
+                         breakdown: Dict[str, float],
+                         indicators: Dict[str, int],
+                         alerts: List[dict]) -> Dict[str, Any]:
+    """Active signal/category 집계 + fast-path 식별. analyze_router 에서
+    category_gating 발화 시 fast_path_match='confirmed_sustained' 로 덮어쓴다."""
+    active_signals = [
+        k for k, v in signals.items()
+        if v is True and k not in ("is_gaming", "is_compiling")
+    ]
+    # active_categories: breakdown 의 카테고리 키 중 점수 > 0 인 것 +
+    # signal→category 매핑으로 발화한 카테고리 (둘 union).
+    active_cats = set()
+    for k in _BREAKDOWN_CATEGORY_KEYS:
+        try:
+            if float(breakdown.get(k, 0) or 0) > 0:
+                active_cats.add(k)
+        except (TypeError, ValueError):
+            pass
+    for sig in active_signals:
+        cat = _SIGNAL_TO_CATEGORY.get(sig)
+        if cat:
+            active_cats.add(cat)
+
+    # fast_path_match 결정
+    fast_path: Optional[str] = None
+    if indicators.get("process", 0) >= 10:
+        fast_path = "mining_known"
+    if fast_path is None:
+        for a in alerts:
+            if a.get("type") == "CONFIRMED_MINING":
+                fast_path = "alerts_contain_confirmed_mining"
+                break
+
+    return {
+        "active_signal_count": len(active_signals),
+        "category_count":      len(active_cats),
+        "active_categories":   sorted(active_cats),
+        "active_signals":      sorted(active_signals),
+        "promotion_gated":     False,
+        "promotion_reason":    "",
+        "fast_path_match":     fast_path,
+    }
+
+
+def apply_promotion_gating(verdict: str,
+                            evidence_meta: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
+    """P0-3 gating: 단일 신호 MEDIUM/HIGH 진입 차단.
+
+    - fast_path_match 가 있으면 우회 (즉시 HIGH_RISK 유지, MEDIUM 도 그대로).
+    - HIGH_RISK 진입: signal>=high_min AND category>=high_min_cat 미달 →
+      한 단계 강등 (HIGH_RISK → SUSPICIOUS).
+    - SUSPICIOUS 진입: signal>=medium_min AND category>=medium_min_cat 미달 →
+      OBSERVE 로 강등.
+    - OBSERVE/NORMAL 은 변경 없음.
+    """
+    meta = dict(evidence_meta)
+    try:
+        pg = get_scoring_policy().promotion_gating
+    except Exception:
+        pg = None
+
+    if pg is None or not pg.enabled:
+        meta["promotion_reason"] = "gating_disabled"
+        return verdict, meta
+
+    fast_path = meta.get("fast_path_match")
+    if fast_path:
+        meta["promotion_reason"] = f"fast_path:{fast_path}"
+        meta["promotion_gated"] = False
+        return verdict, meta
+
+    sig_count = int(meta.get("active_signal_count", 0))
+    cat_count = int(meta.get("category_count", 0))
+
+    if verdict == "HIGH_RISK":
+        ok = (sig_count >= pg.high_min_signal_count
+              and cat_count >= pg.high_min_category_count)
+        if ok:
+            meta["promotion_reason"] = "gating_passed"
+            meta["promotion_gated"] = False
+            return "HIGH_RISK", meta
+        # downgrade — HIGH_RISK 신뢰 부족 → SUSPICIOUS 도 동일 조건 검사
+        meta["promotion_gated"] = True
+        ok_med = (sig_count >= pg.medium_min_signal_count
+                  and cat_count >= pg.medium_min_category_count)
+        if ok_med:
+            meta["promotion_reason"] = (
+                f"gating_blocked:high(sig={sig_count}<{pg.high_min_signal_count}"
+                f" or cat={cat_count}<{pg.high_min_category_count})"
+            )
+            return "SUSPICIOUS", meta
+        meta["promotion_reason"] = (
+            f"gating_blocked:high+medium(sig={sig_count},cat={cat_count})"
+        )
+        return "OBSERVE", meta
+
+    if verdict == "SUSPICIOUS":
+        ok = (sig_count >= pg.medium_min_signal_count
+              and cat_count >= pg.medium_min_category_count)
+        if ok:
+            meta["promotion_reason"] = "gating_passed"
+            meta["promotion_gated"] = False
+            return "SUSPICIOUS", meta
+        meta["promotion_gated"] = True
+        meta["promotion_reason"] = (
+            f"gating_blocked:medium(sig={sig_count}<{pg.medium_min_signal_count}"
+            f" or cat={cat_count}<{pg.medium_min_category_count})"
+        )
+        return "OBSERVE", meta
+
+    # OBSERVE / NORMAL — no gating applied
+    meta["promotion_reason"] = "gating_not_applicable"
+    return verdict, meta
 
 
 def _build_breakdown(indicators: Dict[str, int],
@@ -172,6 +322,19 @@ def analyze_pattern(metrics: MetricsRequest, history: deque, slot: str,
         is_gaming, is_compiling,
     )
 
+    # P0-3 (docs/fp_field_analysis_v0.6.md §7-P0-3): evidence_meta 생성 +
+    # promotion gating 적용. 단일 신호로 MEDIUM/HIGH 진입을 막되,
+    # mining_known / CONFIRMED_MINING fast-path 는 우회. category_gating
+    # 의 confirmed_sustained 우회는 analyze_router 가 후처리.
+    breakdown_for_meta = _build_breakdown(
+        indicators,
+        context_discount=getattr(apply_context_multiplier, "_last_discount", 0),
+        final_score=final_score,
+        retrieval_score=retrieval_score,
+    )
+    evidence_meta = _build_evidence_meta(signals, breakdown_for_meta, indicators, alerts)
+    verdict, evidence_meta = apply_promotion_gating(verdict, evidence_meta)
+
     # P0-2 (docs/fp_field_analysis_v0.6.md §7-P0-2):
     # overall_severity 는 engine verdict 가 진실. alert 의 severity 가
     # 자체적으로 overall_severity 를 강제 승격하지 못한다 (=local alert
@@ -202,6 +365,7 @@ def analyze_pattern(metrics: MetricsRequest, history: deque, slot: str,
         "verdict":          verdict,
         "policy_version":   policy_version,
         "signals_missing":  sig_pack.get("signals_missing", []),
+        "evidence_meta":    evidence_meta,
         "scores": {
             "final":              round(final_score, 2),
             "adjusted":           round(adjusted_score, 2),

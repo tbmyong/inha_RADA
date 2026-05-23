@@ -1,4 +1,4 @@
-version: "scoring-v0.6.0"
+version: "scoring-v0.7.0"
 
 thresholds:
   observe: 5
@@ -114,3 +114,23 @@ gating:
     categories_required: 1
     sustained_minutes: 5
     verdict: OBSERVE
+
+# === P0-3 (docs/fp_field_analysis_v0.6.md §7-P0-3) =====================
+# 단일 신호 MEDIUM 진입 차단을 위한 promotion gating.
+# Field 측정: MEDIUM 의 74% (948/1314) 가 alert 1개로 진입 → 신호 수 / 카테고리 수
+# 동반 조건 추가. Fast-path 는 신호 수 무관하게 즉시 HIGH 유지.
+promotion_gating:
+  enabled: true
+  medium:
+    min_signal_count: 3
+    min_category_count: 2
+  high:
+    min_signal_count: 4
+    min_category_count: 2
+  fast_path:
+    # process_score >= 10 (mining_known 발화)
+    - mining_known
+    # category_gating 의 mining_confirmed (3 카테고리 + 3h sustained)
+    - confirmed_sustained
+    # alerts 에 CONFIRMED_MINING type 존재
+    - alerts_contain_confirmed_mining

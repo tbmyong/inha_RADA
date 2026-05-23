@@ -72,6 +72,17 @@ class Gating:
 
 
 @dataclass(frozen=True)
+class PromotionGating:
+    """P0-3 promotion gating (signal_count + category_count 강제)."""
+    enabled: bool = False
+    medium_min_signal_count: int = 0
+    medium_min_category_count: int = 0
+    high_min_signal_count: int = 0
+    high_min_category_count: int = 0
+    fast_path: FrozenSet[str] = field(default_factory=frozenset)
+
+
+@dataclass(frozen=True)
 class ScoringPolicy:
     version: str
     thresholds: Thresholds
@@ -80,6 +91,7 @@ class ScoringPolicy:
     context_discounts: ContextDiscounts
     category_patterns: CategoryPatterns = field(default_factory=CategoryPatterns)
     gating: Gating = field(default_factory=Gating)
+    promotion_gating: PromotionGating = field(default_factory=PromotionGating)
 
 
 @dataclass(frozen=True)
@@ -143,9 +155,29 @@ def load_scoring_policy() -> ScoringPolicy:
             raw=dict(data.get("category_patterns") or {})
         ),
         gating=Gating(raw=dict(data.get("gating") or {})),
+        promotion_gating=_build_promotion_gating(data.get("promotion_gating")),
     )
     _scoring_policy_cache = policy
     return policy
+
+
+def _build_promotion_gating(raw: Any) -> "PromotionGating":
+    """P0-3 promotion_gating 섹션 파싱. 없으면 disabled 기본값."""
+    if not isinstance(raw, dict):
+        return PromotionGating()
+    medium = raw.get("medium") or {}
+    high = raw.get("high") or {}
+    fp_raw = raw.get("fast_path") or []
+    if not isinstance(fp_raw, list):
+        fp_raw = []
+    return PromotionGating(
+        enabled=bool(raw.get("enabled", False)),
+        medium_min_signal_count=int(medium.get("min_signal_count", 0) or 0),
+        medium_min_category_count=int(medium.get("min_category_count", 0) or 0),
+        high_min_signal_count=int(high.get("min_signal_count", 0) or 0),
+        high_min_category_count=int(high.get("min_category_count", 0) or 0),
+        fast_path=frozenset(str(x) for x in fp_raw),
+    )
 
 
 def load_allowlist() -> AllowList:
@@ -214,6 +246,7 @@ __all__ = [
     "ContextDiscounts",
     "CategoryPatterns",
     "Gating",
+    "PromotionGating",
     "AllowList",
     "load_scoring_policy",
     "load_allowlist",

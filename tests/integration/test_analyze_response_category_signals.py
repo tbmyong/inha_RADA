@@ -48,8 +48,9 @@ def test_legacy_keys_preserved(client):
         assert k in breakdown, f"missing breakdown key: {k}"
 
 
-def test_policy_version_v06(client):
+def test_policy_version_v07(client):
     payload = normal_metrics(pc_id="pc-CS3", slot="class", idx=0)
     r = client.post("/analyze", json=payload)
     body = r.json()
-    assert body["policy_version"].startswith("scoring-v0.6")
+    # P0-3: policy bump v0.6 → v0.7 (promotion_gating 도입).
+    assert body["policy_version"].startswith("scoring-v0.7")

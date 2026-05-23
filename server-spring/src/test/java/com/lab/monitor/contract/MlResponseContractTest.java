@@ -168,6 +168,48 @@ class MlResponseContractTest {
         assertThat(mapped.getCategorySignals()).isNull();
     }
 
+    /**
+     * P0-3 (docs/fp_field_analysis_v0.6.md §7-P0-3): evidence_meta block
+     * (promotion gating audit) must round-trip into the {@code evidenceMeta}
+     * map field. Keys: active_signal_count, category_count,
+     * active_categories, active_signals, promotion_gated, promotion_reason,
+     * fast_path_match.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void evidence_meta_block_deserializes_into_map() throws IOException {
+        String json = "{\"overall_severity\":\"HIGH\",\"verdict\":\"DANGEROUS\"," +
+                "\"evidence_meta\":{" +
+                "\"active_signal_count\":5," +
+                "\"category_count\":3," +
+                "\"active_categories\":[\"resource\",\"network\",\"ml\"]," +
+                "\"active_signals\":[\"cpu_flat\",\"net_out_sustained\",\"gpu_high\",\"mem_high\",\"ml_anomaly\"]," +
+                "\"promotion_gated\":false," +
+                "\"promotion_reason\":\"fast_path:mining_known\"," +
+                "\"fast_path_match\":\"mining_known\"" +
+                "}}";
+        MlResponse mapped = mapper.readValue(json, MlResponse.class);
+        assertThat(mapped.getEvidenceMeta()).isNotNull();
+        assertThat(mapped.getEvidenceMeta()).containsEntry("active_signal_count", 5);
+        assertThat(mapped.getEvidenceMeta()).containsEntry("category_count", 3);
+        assertThat(mapped.getEvidenceMeta()).containsEntry("promotion_gated", false);
+        assertThat(mapped.getEvidenceMeta()).containsEntry("promotion_reason", "fast_path:mining_known");
+        assertThat(mapped.getEvidenceMeta()).containsEntry("fast_path_match", "mining_known");
+        java.util.List<String> cats =
+                (java.util.List<String>) mapped.getEvidenceMeta().get("active_categories");
+        assertThat(cats).containsExactly("resource", "network", "ml");
+        java.util.List<String> sigs =
+                (java.util.List<String>) mapped.getEvidenceMeta().get("active_signals");
+        assertThat(sigs).hasSize(5);
+    }
+
+    @Test
+    void evidence_meta_absent_is_null() throws IOException {
+        String json = "{\"overall_severity\":\"NORMAL\",\"verdict\":\"SAFE\"}";
+        MlResponse mapped = mapper.readValue(json, MlResponse.class);
+        assertThat(mapped.getEvidenceMeta()).isNull();
+    }
+
     @Test
     void unknown_keys_are_ignored() throws IOException {
         String json = "{\"overall_severity\":\"NORMAL\",\"verdict\":\"SAFE\"," +

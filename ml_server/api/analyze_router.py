@@ -157,6 +157,15 @@ def analyze(metrics: MetricsRequest):
         verdict_rank = {"HIGH_RISK": 3, "SUSPICIOUS": 2, "OBSERVE": 1, "NORMAL": 0}
         cur_v = pattern_result.get("verdict", "NORMAL")
         gv = gating_result.verdict
+        # P0-3: category_gating 의 mining_confirmed (alert_type ==
+        # MINING_CONFIRMED_BY_BEHAVIOR) 는 promotion gating 의 fast-path
+        # "confirmed_sustained" 로 표시. evidence_meta 에 즉시 반영.
+        if gating_result.detail.get("alert_type") == "MINING_CONFIRMED_BY_BEHAVIOR":
+            em = pattern_result.get("evidence_meta") or {}
+            em["fast_path_match"] = "confirmed_sustained"
+            em["promotion_gated"] = False
+            em["promotion_reason"] = "fast_path:confirmed_sustained"
+            pattern_result["evidence_meta"] = em
         if verdict_rank.get(gv, 0) > verdict_rank.get(cur_v, 0):
             pattern_result["verdict"] = gv
             sev_map = {"HIGH_RISK": "HIGH", "SUSPICIOUS": "MEDIUM", "OBSERVE": "LOW", "NORMAL": "NORMAL"}
@@ -238,5 +247,14 @@ def analyze(metrics: MetricsRequest):
             "sustained_minutes":   0,
             "triggered_patterns":  [],
             "verdict_from_gating": "NORMAL",
+        }),
+        "evidence_meta":       pattern_result.get("evidence_meta", {
+            "active_signal_count": 0,
+            "category_count":      0,
+            "active_categories":   [],
+            "active_signals":      [],
+            "promotion_gated":     False,
+            "promotion_reason":    "gating_disabled",
+            "fast_path_match":     None,
         }),
     })
