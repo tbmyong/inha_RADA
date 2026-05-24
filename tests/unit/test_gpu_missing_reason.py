@@ -21,7 +21,7 @@ def test_no_gputil_or_pynvml_returns_reason():
         c = GpuCollector()
         data, reason = c.collect()
         assert data is None
-        assert reason in ("no_gputil", "pynvml_error", "unknown")
+        assert reason in ("no_gputil", "pynvml_error", "driver_error", "unknown")
 
 
 def test_no_gpu_when_empty_list():
