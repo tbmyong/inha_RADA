@@ -72,10 +72,19 @@ def calculate_indicators(signals: Dict[str, Any], slot: str,
     dos_score = 0
     if signals["dos_spike"]:                         dos_score += 5
 
+    # P2 (docs/fp_field_analysis_post_p1.md §10):
+    # backdoor_score 는 0 으로 고정. 기존 (persistent_ext + net_external_high)
+    # 만으론 정상 dev/스트리밍/클라우드 동기화 (Chrome, Discord, OneDrive, VS
+    # Code, 게임 런처) 와 구분 불가 — Post-P0/P1 측정에서 잔여 FP 54건 중
+    # 53건이 SUSPICIOUS_BACKDOOR 였고, 모두 정상 사용 패턴이었다.
+    #
+    # 진짜 backdoor 탐지는 Sysmon (process tree / cmdline / digital signature
+    # / network connection PID 매핑 / registry persistence) 이 들어온 뒤
+    # 재도입 예정. 그 전까지 backdoor verdict 승격은 비활성.
+    #
+    # raw signals (persistent_ext, net_external_high) 는 signal_extractor 에서
+    # 그대로 출력 → evidence_meta.active_signals 에 노출 → 운영자가 직접 확인.
     backdoor_score = 0
-    if slot == "free":
-        if signals["persistent_ext"]:                backdoor_score += 3
-        if signals["net_external_high"]:             backdoor_score += 1
 
     mem_score = 0
     if signals["mem_critical"]:                      mem_score += 1

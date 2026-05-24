@@ -229,12 +229,17 @@ def build_alerts(verdict: str, signals: Dict[str, Any], indicators: Dict[str, in
                            "score":round(final_score,2)})
 
     if verdict in ("HIGH_RISK","SUSPICIOUS","OBSERVE") and not is_confirmed_mining:
+        # P2 (docs/fp_field_analysis_post_p1.md §10): BACKDOOR 는 top_cat
+        # 후보에서 제외. indicator_calculator 에서 backdoor_score 를 0 으로
+        # 고정했으므로 함께 두면 항상 0 → 운영상 무의미한 후보가 alert 의
+        # type 으로 채택될 수 있음. raw 신호 (persistent_ext, net_external_high)
+        # 는 evidence_meta.active_signals 에 그대로 노출되니 운영자가 별도
+        # 확인 가능. Sysmon 데이터 도입 후 재추가 예정.
         top_cat = max([
             ("GPU_MINING", indicators["gpu_mining"]),
             ("CPU_MINING", indicators["cpu_mining"]),
             ("STEALTH",    indicators["stealth"]),
             ("EXFIL",      indicators["exfil"]),
-            ("BACKDOOR",   indicators["backdoor"]),
             ("DOS",        indicators["dos"]),
             ("MEMORY",     indicators["mem"]),
             ("ML",         indicators["ml"]),
