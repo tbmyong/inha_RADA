@@ -5,9 +5,12 @@ docs/fp_field_analysis_post_p1.md §10.
 Post-P0/P1 measurement showed 53/54 (98%) remaining persisted rows
 were `SUSPICIOUS_BACKDOOR`, all originating from normal dev/streaming
 activity (Chrome %APPDATA%, OneDrive sync, Discord, game launchers).
-Until Sysmon-grade process / cmdline / signature / DNS data lands,
-the existing backdoor signature is too weak — it conflates ordinary
-network persistence with the actual attack surface.
+With the data RADA currently collects (network statistics + process
+name/path) the existing backdoor signature cannot tell those apart
+from a real attack — it conflates ordinary network persistence with
+the actual attack surface. Stronger evidence (cmdline / digital
+signature / per-PID network mapping) would be required to revisit,
+but that's out of current scope.
 
 This PR
 - forces backdoor_score = 0 in indicator_calculator

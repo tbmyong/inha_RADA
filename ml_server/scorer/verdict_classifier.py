@@ -234,7 +234,8 @@ def build_alerts(verdict: str, signals: Dict[str, Any], indicators: Dict[str, in
         # 고정했으므로 함께 두면 항상 0 → 운영상 무의미한 후보가 alert 의
         # type 으로 채택될 수 있음. raw 신호 (persistent_ext, net_external_high)
         # 는 evidence_meta.active_signals 에 그대로 노출되니 운영자가 별도
-        # 확인 가능. Sysmon 데이터 도입 후 재추가 예정.
+        # 확인 가능. 더 강한 evidence (cmdline / 서명 등) 수집 인프라가
+        # 갖춰지면 재검토 가능하지만 현재 범위 밖.
         top_cat = max([
             ("GPU_MINING", indicators["gpu_mining"]),
             ("CPU_MINING", indicators["cpu_mining"]),

@@ -78,9 +78,10 @@ def calculate_indicators(signals: Dict[str, Any], slot: str,
     # Code, 게임 런처) 와 구분 불가 — Post-P0/P1 측정에서 잔여 FP 54건 중
     # 53건이 SUSPICIOUS_BACKDOOR 였고, 모두 정상 사용 패턴이었다.
     #
-    # 진짜 backdoor 탐지는 Sysmon (process tree / cmdline / digital signature
-    # / network connection PID 매핑 / registry persistence) 이 들어온 뒤
-    # 재도입 예정. 그 전까지 backdoor verdict 승격은 비활성.
+    # 현재 RADA 가 수집하는 데이터 (네트워크 통계 + 프로세스 이름/경로) 만으론
+    # 진짜 backdoor 와 정상 외부 통신을 구분할 수 없다. 더 강력한 evidence
+    # (cmdline, digital signature, PID 별 네트워크 매핑 등) 가 향후 도입되면
+    # 재검토 가능하지만 현재 범위 밖. 그 전까지 backdoor verdict 승격은 비활성.
     #
     # raw signals (persistent_ext, net_external_high) 는 signal_extractor 에서
     # 그대로 출력 → evidence_meta.active_signals 에 노출 → 운영자가 직접 확인.
