@@ -55,7 +55,11 @@ def test_normal_after_training(client):
 def test_anomaly_after_training(client):
     seed_history(client, pc_id="pc-S3", slot="class", n=60)
 
+    # P1-2: dos_spike now requires min_sustained_count consecutive hits
+    # of (ratio + absolute floor). Prime the streak with one anomaly call
+    # before the assertion call so the second hit fires the signal.
     payload = anomaly_metrics(pc_id="pc-S3", slot="class", idx=300)
+    client.post("/analyze", json=payload)
     r = client.post("/analyze", json=payload)
     assert r.status_code == 200, r.text
     body = r.json()

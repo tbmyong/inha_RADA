@@ -11,10 +11,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
@@ -24,11 +27,38 @@ public class AlertService {
     private final AiJudgmentRepository aiJudgmentRepository;
     private final ObjectMapper objectMapper;
 
+    /**
+     * P1-3 (docs/fp_field_analysis_v0.6.md §7-P1-3) — alert cooldown.
+     * Same (pc_id, anomaly_type) re-firing within
+     * {@link #DEFAULT_COOLDOWN_SECONDS} of last persist is dropped to
+     * collapse spike-storm bursts (5 s × 12 hits = 60 s → 1 persist).
+     * Cooldown is per-instance (not durable). Engine still emits the
+     * alert in full so debug consumers see every fire; only persistence
+     * to {@code anomaly_history} is deduped.
+     */
+    static final long DEFAULT_COOLDOWN_SECONDS = 60L;
+    private final ConcurrentHashMap<String, Instant> lastPersistAt =
+            new ConcurrentHashMap<>();
+    private final long cooldownSeconds;
+
     public AlertService(AlertRepository alertRepository,
                         AiJudgmentRepository aiJudgmentRepository) {
+        this(alertRepository, aiJudgmentRepository, DEFAULT_COOLDOWN_SECONDS);
+    }
+
+    /** Visible for testing — allows custom cooldown. */
+    AlertService(AlertRepository alertRepository,
+                 AiJudgmentRepository aiJudgmentRepository,
+                 long cooldownSeconds) {
         this.alertRepository = alertRepository;
         this.aiJudgmentRepository = aiJudgmentRepository;
         this.objectMapper = new ObjectMapper();
+        this.cooldownSeconds = cooldownSeconds;
+    }
+
+    /** Visible for testing — reset in-memory cooldown state. */
+    void resetCooldown() {
+        lastPersistAt.clear();
     }
 
     @Transactional
@@ -49,6 +79,23 @@ public class AlertService {
             log.debug("P0-1 skip: LOW/OBSERVE not persisted pcId={}", pcId);
             return;
         }
+        // P1-3 (docs/fp_field_analysis_v0.6.md §7-P1-3): per-anomaly_type
+        // cooldown. Same (pcId, verdict) within cooldownSeconds of last
+        // persist → skip. Prevents 5-second spike storms from inflating
+        // anomaly_history into hundreds of rows.
+        if (cooldownSeconds > 0 && resp.getVerdict() != null) {
+            String key = pcId + "::" + resp.getVerdict().toUpperCase();
+            Instant nowInstant = Instant.now();
+            Instant prev = lastPersistAt.get(key);
+            if (prev != null
+                    && Duration.between(prev, nowInstant).getSeconds() < cooldownSeconds) {
+                log.debug("P1-3 cooldown skip: pcId={} type={} elapsed={}s",
+                        pcId, resp.getVerdict(),
+                        Duration.between(prev, nowInstant).getSeconds());
+                return;
+            }
+            lastPersistAt.put(key, nowInstant);
+        }
         OffsetDateTime now = OffsetDateTime.now();
 
         AnomalyHistory anomaly = AnomalyHistory.builder()
@@ -61,7 +108,8 @@ public class AlertService {
                         resp.getRetrievalEvidence(),
                         resp.getSignalsMissing(),
                         resp.getCategorySignals(),
-                        resp.getEvidenceMeta()))
+                        resp.getEvidenceMeta(),
+                        resp.getLocalEvidence()))
                 .alerts(resp.getAlerts())
                 .build();
         AnomalyHistory saved = alertRepository.save(anomaly);
@@ -161,11 +209,28 @@ public class AlertService {
                                                 List<String> signalsMissing,
                                                 Map<String, Object> categorySignals,
                                                 Map<String, Object> evidenceMeta) {
+        return mergeAuditExtras(scores, retrievalEvidence, signalsMissing,
+                categorySignals, evidenceMeta, null);
+    }
+
+    /**
+     * P1-1 overload — also merges {@code local_evidence} (agent-side
+     * LOCAL_* alerts split out of {@code alerts[]}) into the scores
+     * JSONB. Same semantics as the other overloads: original
+     * {@code scores} reference returned when ALL extras are null/empty.
+     */
+    static Map<String, Object> mergeAuditExtras(Map<String, Object> scores,
+                                                Map<String, Object> retrievalEvidence,
+                                                List<String> signalsMissing,
+                                                Map<String, Object> categorySignals,
+                                                Map<String, Object> evidenceMeta,
+                                                List<Map<String, Object>> localEvidence) {
         boolean hasEvidence = retrievalEvidence != null && !retrievalEvidence.isEmpty();
         boolean hasMissing = signalsMissing != null && !signalsMissing.isEmpty();
         boolean hasCategory = categorySignals != null && !categorySignals.isEmpty();
         boolean hasMeta = evidenceMeta != null && !evidenceMeta.isEmpty();
-        if (!hasEvidence && !hasMissing && !hasCategory && !hasMeta) {
+        boolean hasLocal = localEvidence != null && !localEvidence.isEmpty();
+        if (!hasEvidence && !hasMissing && !hasCategory && !hasMeta && !hasLocal) {
             return scores;
         }
         Map<String, Object> merged = new LinkedHashMap<>();
@@ -183,6 +248,9 @@ public class AlertService {
         }
         if (hasMeta) {
             merged.put("evidence_meta", evidenceMeta);
+        }
+        if (hasLocal) {
+            merged.put("local_evidence", localEvidence);
         }
         return merged;
     }

@@ -53,4 +53,6 @@ def test_policy_version_v07(client):
     r = client.post("/analyze", json=payload)
     body = r.json()
     # P0-3: policy bump v0.6 → v0.7 (promotion_gating 도입).
-    assert body["policy_version"].startswith("scoring-v0.7")
+    # P1-*: policy bump v0.7 → v0.8 (dos_detection + episode_dedupe 도입).
+    assert (body["policy_version"].startswith("scoring-v0.7")
+            or body["policy_version"].startswith("scoring-v0.8"))

@@ -47,6 +47,14 @@ pc_minute_aggregates: Dict[str, Deque[dict]] = {}
 # pc_id → { "slot_start": float (epoch sec), "samples": list[dict] }
 _pc_minute_buffer: Dict[str, Dict[str, Any]] = {}
 
+# P1-2 dos spike sustained count tracker.
+# pc_id → int (consecutive spikes that met both ratio + absolute floor).
+# Reset to 0 once a sample fails either condition.
+dos_spike_streak: Dict[str, int] = {}
+
+# P1-3 last anomaly persist timestamp per (pc_id, anomaly_type) — used by
+# Spring AlertService for cooldown, also exposed for ML-side analytics.
+# Stored as Dict[Tuple[str,str], float (epoch sec)].
 # 카테고리 boolean 들의 sustained 추적용 상태.
 # pc_id → {
 #   "all_three_since": Optional[float],  # 3 카테고리 동시 충족 시작 epoch
@@ -224,3 +232,4 @@ def reset_all_state() -> None:
     pc_minute_aggregates.clear()
     _pc_minute_buffer.clear()
     pc_category_state.clear()
+    dos_spike_streak.clear()

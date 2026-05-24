@@ -666,6 +666,147 @@ class AlertServiceTest {
         assertThat(a.getValue().getScores()).doesNotContainKey("evidence_meta");
     }
 
+    /**
+     * P1-1 (docs/fp_field_analysis_v0.6.md §7-P1-1): local_evidence
+     * (LOCAL_* agent advisories that no longer pollute alerts[]) is
+     * preserved verbatim under scores.local_evidence for audit.
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    void local_evidence_merged_into_scores_jsonb_when_present() {
+        Map<String, Object> scores = Map.of("cpu", 0.5);
+        List<Map<String, Object>> local = List.of(
+                Map.of("type", "LOCAL_MEM_HIGH", "severity", "HIGH",
+                       "detail", "[에이전트] mem 95", "score", 0),
+                Map.of("type", "LOCAL_HW_CPU_DEGRADATION", "severity", "MEDIUM",
+                       "detail", "[에이전트] cpu drift", "score", 0));
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("HIGH")
+                .verdict("DANGEROUS")
+                .scores(scores)
+                .localEvidence(local)
+                .build();
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(501L); return ah; });
+
+        service.handle(resp, "pc-le");
+
+        ArgumentCaptor<AnomalyHistory> a = ArgumentCaptor.forClass(AnomalyHistory.class);
+        verify(alertRepository).save(a.capture());
+        Map<String, Object> saved = a.getValue().getScores();
+        assertThat(saved).containsKey("local_evidence");
+        List<Map<String, Object>> savedLocal =
+                (List<Map<String, Object>>) saved.get("local_evidence");
+        assertThat(savedLocal).hasSize(2);
+        assertThat(savedLocal.get(0)).containsEntry("type", "LOCAL_MEM_HIGH");
+        assertThat(savedLocal.get(1)).containsEntry("severity", "MEDIUM");
+        assertThat(saved).containsEntry("cpu", 0.5);
+    }
+
+    @Test
+    void local_evidence_absent_leaves_scores_untouched() {
+        Map<String, Object> scores = Map.of("cpu", 0.5);
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("HIGH")
+                .verdict("DANGEROUS")
+                .scores(scores)
+                .build();
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(502L); return ah; });
+
+        service.handle(resp, "pc-le-none");
+
+        ArgumentCaptor<AnomalyHistory> a = ArgumentCaptor.forClass(AnomalyHistory.class);
+        verify(alertRepository).save(a.capture());
+        assertThat(a.getValue().getScores()).doesNotContainKey("local_evidence");
+    }
+
+    @Test
+    void local_evidence_empty_leaves_scores_untouched() {
+        Map<String, Object> scores = Map.of("cpu", 0.5);
+        MlResponse resp = MlResponse.builder()
+                .overallSeverity("HIGH")
+                .verdict("DANGEROUS")
+                .scores(scores)
+                .localEvidence(List.of())
+                .build();
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(503L); return ah; });
+
+        service.handle(resp, "pc-le-empty");
+
+        ArgumentCaptor<AnomalyHistory> a = ArgumentCaptor.forClass(AnomalyHistory.class);
+        verify(alertRepository).save(a.capture());
+        assertThat(a.getValue().getScores()).doesNotContainKey("local_evidence");
+    }
+
+    // ──────────────────────────────────────────
+    // P1-3 alert cooldown (docs/fp_field_analysis_v0.6.md §7-P1-3)
+    // ──────────────────────────────────────────
+
+    @Test
+    void cooldown_drops_duplicate_within_window() {
+        // 60s cooldown — second persist of same (pc,verdict) within window is skipped.
+        AlertService svc = new AlertService(alertRepository, aiJudgmentRepository, 60L);
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(601L); return ah; });
+
+        MlResponse r1 = MlResponse.builder()
+                .overallSeverity("HIGH").verdict("DANGEROUS").build();
+        svc.handle(r1, "pc-cd1");
+        svc.handle(r1, "pc-cd1");  // dedupe
+        svc.handle(r1, "pc-cd1");  // dedupe
+
+        verify(alertRepository, times(1)).save(any(AnomalyHistory.class));
+    }
+
+    @Test
+    void cooldown_does_not_dedupe_across_pcs() {
+        AlertService svc = new AlertService(alertRepository, aiJudgmentRepository, 60L);
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(602L); return ah; });
+
+        MlResponse r = MlResponse.builder()
+                .overallSeverity("HIGH").verdict("DANGEROUS").build();
+        svc.handle(r, "pc-A");
+        svc.handle(r, "pc-B");
+        svc.handle(r, "pc-C");
+
+        verify(alertRepository, times(3)).save(any(AnomalyHistory.class));
+    }
+
+    @Test
+    void cooldown_does_not_dedupe_different_verdicts_for_same_pc() {
+        AlertService svc = new AlertService(alertRepository, aiJudgmentRepository, 60L);
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(603L); return ah; });
+
+        MlResponse r1 = MlResponse.builder()
+                .overallSeverity("HIGH").verdict("HIGH_RISK").build();
+        MlResponse r2 = MlResponse.builder()
+                .overallSeverity("MEDIUM").verdict("SUSPICIOUS").build();
+        svc.handle(r1, "pc-V");
+        svc.handle(r2, "pc-V");
+
+        verify(alertRepository, times(2)).save(any(AnomalyHistory.class));
+    }
+
+    @Test
+    void cooldown_zero_disables_dedupe() {
+        // cooldownSeconds=0 → every persist goes through.
+        AlertService svc = new AlertService(alertRepository, aiJudgmentRepository, 0L);
+        when(alertRepository.save(any(AnomalyHistory.class)))
+                .thenAnswer(inv -> { AnomalyHistory ah = inv.getArgument(0); ah.setId(604L); return ah; });
+
+        MlResponse r = MlResponse.builder()
+                .overallSeverity("HIGH").verdict("HIGH_RISK").build();
+        svc.handle(r, "pc-Z");
+        svc.handle(r, "pc-Z");
+        svc.handle(r, "pc-Z");
+
+        verify(alertRepository, times(3)).save(any(AnomalyHistory.class));
+    }
+
     @Test
     @SuppressWarnings("unchecked")
     void evidence_meta_coexists_with_retrieval_and_category_blocks() {

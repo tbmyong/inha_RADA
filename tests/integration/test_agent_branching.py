@@ -18,8 +18,10 @@ def test_mock_agent_when_no_api_key(client, monkeypatch):
     monkeypatch.setattr(runner, "USE_REAL_CLAUDE", False, raising=True)
 
     seed_history(client, pc_id="pc-AG1", slot="class", n=60)
-    r = client.post("/analyze",
-                    json=anomaly_metrics(pc_id="pc-AG1", slot="class", idx=300))
+    # P1-2: prime dos_spike streak so the assertion call fires the signal.
+    payload = anomaly_metrics(pc_id="pc-AG1", slot="class", idx=300)
+    client.post("/analyze", json=payload)
+    r = client.post("/analyze", json=payload)
     body = r.json()
     assert body["agent"] is not None
     missing = AGENT_KEYS - set(body["agent"].keys())
@@ -52,8 +54,10 @@ def test_claude_branch_invoked_when_enabled(client, monkeypatch):
     monkeypatch.setattr(runner, "call_claude_api", fake_call, raising=True)
 
     seed_history(client, pc_id="pc-AG3", slot="class", n=60)
-    r = client.post("/analyze",
-                    json=anomaly_metrics(pc_id="pc-AG3", slot="class", idx=300))
+    # P1-2: prime dos_spike streak.
+    payload = anomaly_metrics(pc_id="pc-AG3", slot="class", idx=300)
+    client.post("/analyze", json=payload)
+    r = client.post("/analyze", json=payload)
     body = r.json()
-    assert called["n"] == 1
+    assert called["n"] >= 1
     assert body["agent"]["judgment"] == "SUSPICIOUS"

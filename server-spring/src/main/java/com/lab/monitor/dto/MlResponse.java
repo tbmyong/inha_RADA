@@ -72,4 +72,14 @@ public class MlResponse {
      * May be null on older ML deployments (pre v0.7.0).
      */
     private Map<String, Object> evidenceMeta;
+    /**
+     * P1-1 (docs/fp_field_analysis_v0.6.md §7-P1-1) — local alert evidence.
+     * LOCAL_* alerts (agent-side hw/mem high warnings) are no longer mixed
+     * into {@code alerts[]} because they were polluting active_signal_count
+     * and downstream noise counts without affecting verdict. They are now
+     * carried as a separate evidence block, persisted verbatim under
+     * {@code anomaly_history.scores->'local_evidence'} for audit/search.
+     * May be null on older ML deployments (pre v0.8.0).
+     */
+    private List<Map<String, Object>> localEvidence;
 }

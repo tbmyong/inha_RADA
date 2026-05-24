@@ -1,4 +1,4 @@
-version: "scoring-v0.7.0"
+version: "scoring-v0.8.0"
 
 thresholds:
   observe: 5
@@ -134,3 +134,25 @@ promotion_gating:
     - confirmed_sustained
     # alerts 에 CONFIRMED_MINING type 존재
     - alerts_contain_confirmed_mining
+
+# === P1-2 (docs/fp_field_analysis_v0.6.md §7-P1-2) =====================
+# DOS / network spike 절대값 floor. 비율(avg 대비 N배) 만으론 baseline 이
+# 0.03MB 일 때 2.5MB 도 80배가 되어 정상 download burst 가 dos_spike 로
+# 잡힌다. 절대값 + 연속 N회 조건을 함께 만족해야 발화.
+dos_detection:
+  # 평균 대비 비율 외에 절대값 floor (MB / 5s). 미달이면 dos_spike False.
+  min_inbound_mb_per_5s: 20.0
+  # 연속 spike 횟수 — N회 이상 연속해서 비율+절대값 모두 만족해야 발화.
+  # 1 = 즉시 발화 (cooldown 없음), 2 = 10초+ 지속해야 발화.
+  min_sustained_count: 2
+
+# === P1-3 (docs/fp_field_analysis_v0.6.md §7-P1-3) =====================
+# episode score 빠른 decay + alert cooldown.
+# - episode_decay_after_normal_count: rule_score_history 에 0 점이 N회
+#   연속 추가되면 deque 를 즉시 비워 누적 가중치를 끊는다. 기본 12
+#   = 1분 (5초 × 12). 0 = decay 비활성.
+# - alert_cooldown_seconds: 동일 (pc_id, anomaly_type) 의 anomaly_history
+#   persist 사이 최소 간격 (Spring AlertService 측 dedupe). 기본 60.
+episode_dedupe:
+  episode_decay_after_normal_count: 12
+  alert_cooldown_seconds: 60

@@ -83,6 +83,25 @@ class PromotionGating:
 
 
 @dataclass(frozen=True)
+class DosDetection:
+    """P1-2 DOS / network spike 절대값 floor + 지속 횟수 조건."""
+    min_inbound_mb_per_5s: float = 0.0
+    min_sustained_count: int = 1
+
+
+@dataclass(frozen=True)
+class EpisodeDedupe:
+    """P1-3 episode score 빠른 decay + alert cooldown.
+
+    - episode_decay_after_normal_count: append_rule_score 가 0 점을 N회
+      연속 받으면 deque 를 즉시 비워 누적을 끊는다. 0 = 비활성.
+    - alert_cooldown_seconds: Spring 측 dedupe 윈도우 (초). 0 = 비활성.
+    """
+    episode_decay_after_normal_count: int = 0
+    alert_cooldown_seconds: int = 0
+
+
+@dataclass(frozen=True)
 class ScoringPolicy:
     version: str
     thresholds: Thresholds
@@ -92,6 +111,8 @@ class ScoringPolicy:
     category_patterns: CategoryPatterns = field(default_factory=CategoryPatterns)
     gating: Gating = field(default_factory=Gating)
     promotion_gating: PromotionGating = field(default_factory=PromotionGating)
+    dos_detection: DosDetection = field(default_factory=DosDetection)
+    episode_dedupe: EpisodeDedupe = field(default_factory=EpisodeDedupe)
 
 
 @dataclass(frozen=True)
@@ -156,9 +177,52 @@ def load_scoring_policy() -> ScoringPolicy:
         ),
         gating=Gating(raw=dict(data.get("gating") or {})),
         promotion_gating=_build_promotion_gating(data.get("promotion_gating")),
+        dos_detection=_build_dos_detection(data.get("dos_detection")),
+        episode_dedupe=_build_episode_dedupe(data.get("episode_dedupe")),
     )
     _scoring_policy_cache = policy
     return policy
+
+
+def _build_dos_detection(raw: Any) -> "DosDetection":
+    """P1-2 dos_detection 섹션 파싱. 없으면 비활성 기본값(=floor 0, sustained 1)."""
+    if not isinstance(raw, dict):
+        return DosDetection()
+    try:
+        floor = float(raw.get("min_inbound_mb_per_5s", 0.0) or 0.0)
+    except (TypeError, ValueError):
+        floor = 0.0
+    try:
+        sustained = int(raw.get("min_sustained_count", 1) or 1)
+    except (TypeError, ValueError):
+        sustained = 1
+    if sustained < 1:
+        sustained = 1
+    if floor < 0:
+        floor = 0.0
+    return DosDetection(min_inbound_mb_per_5s=floor, min_sustained_count=sustained)
+
+
+def _build_episode_dedupe(raw: Any) -> "EpisodeDedupe":
+    """P1-3 episode_dedupe 섹션 파싱."""
+    if not isinstance(raw, dict):
+        return EpisodeDedupe()
+    try:
+        decay = int(raw.get("episode_decay_after_normal_count", 0) or 0)
+    except (TypeError, ValueError):
+        decay = 0
+    try:
+        cooldown = int(raw.get("alert_cooldown_seconds", 0) or 0)
+    except (TypeError, ValueError):
+        cooldown = 0
+    if decay < 0:
+        decay = 0
+    if cooldown < 0:
+        cooldown = 0
+    return EpisodeDedupe(
+        episode_decay_after_normal_count=decay,
+        alert_cooldown_seconds=cooldown,
+    )
 
 
 def _build_promotion_gating(raw: Any) -> "PromotionGating":
@@ -247,6 +311,8 @@ __all__ = [
     "CategoryPatterns",
     "Gating",
     "PromotionGating",
+    "DosDetection",
+    "EpisodeDedupe",
     "AllowList",
     "load_scoring_policy",
     "load_allowlist",

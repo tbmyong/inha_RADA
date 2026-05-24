@@ -239,6 +239,7 @@ def analyze(metrics: MetricsRequest):
         "global_hw_degradation": global_hw,
         "agent":               agent_result,
         "retrieval_evidence":  retrieval_evidence,
+        "local_evidence":      pattern_result.get("local_evidence", []),
         "signals_missing":     pattern_result.get("signals_missing", []),
         "category_signals":    pattern_result.get("category_signals", {
             "resource_abnormal":   False,

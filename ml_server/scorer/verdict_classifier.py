@@ -260,14 +260,35 @@ def build_alerts(verdict: str, signals: Dict[str, Any], indicators: Dict[str, in
                                  f"{metrics.inbound_mb/avg_inbound:.1f}배, 기준={dos_ratio}배)"),
                        "score":round(indicators["dos"],2)})
 
-    for la in metrics.local_alerts:
-        if la.get("severity") in ("HIGH","MEDIUM"):
-            alerts.append({"type":f"LOCAL_{la.get('type','UNKNOWN')}",
-                           "severity":la["severity"],
-                           "detail":f"[에이전트] {la.get('detail','')}",
-                           "score":0})
+    # P1-1 (docs/fp_field_analysis_v0.6.md §7-P1-1): local alert 는
+    # alerts[] 에 섞지 않는다. build_local_evidence() 가 별도 evidence
+    # 블록으로 분리해 active_signal_count / verdict 결정에서 빼고
+    # 감사 용도로만 보존한다. (build_local_evidence 는 별도 호출.)
 
     return alerts
+
+
+def build_local_evidence(metrics: MetricsRequest) -> List[dict]:
+    """P1-1 local_alerts 를 별도 evidence 블록으로 변환.
+
+    Spec: LOCAL_* 은 alerts[] 에 더 이상 들어가지 않는다. 하지만 감사
+    /검색 목적으로 응답 안에 보존돼야 한다. 본 함수는 client 가 보낸
+    metrics.local_alerts (severity HIGH/MEDIUM 만) 를 LOCAL_<type> 형식
+    의 evidence 항목 리스트로 반환한다. severity LOW/None 은 제외.
+
+    evidence 항목은 alerts schema 와 호환 (type/severity/detail/score) 이지만
+    score=0 이며 evidence_meta.active_signal_count 산출에서 제외된다.
+    """
+    out: List[dict] = []
+    for la in (metrics.local_alerts or []):
+        if la.get("severity") in ("HIGH", "MEDIUM"):
+            out.append({
+                "type":     f"LOCAL_{la.get('type', 'UNKNOWN')}",
+                "severity": la["severity"],
+                "detail":   f"[에이전트] {la.get('detail', '')}",
+                "score":    0,
+            })
+    return out
 
 
 def analyze_pattern(metrics: MetricsRequest, history: deque, slot: str,
@@ -294,12 +315,35 @@ def analyze_pattern(metrics: MetricsRequest, history: deque, slot: str,
     context_discount_clamped = getattr(apply_context_multiplier, "_last_clamped", False)
 
     # retrieval score 반영 (context discount 전 점수에 가산)
-    retrieval_score = 0
+    retrieval_score_raw = 0
     if isinstance(retrieval_evidence, dict) and retrieval_evidence.get("available"):
         try:
-            retrieval_score = int(retrieval_evidence.get("retrieval_score", 0) or 0)
+            retrieval_score_raw = int(retrieval_evidence.get("retrieval_score", 0) or 0)
         except (TypeError, ValueError):
-            retrieval_score = 0
+            retrieval_score_raw = 0
+    # P1-4 (docs/fp_field_analysis_v0.6.md §7-P1-4): retrieval positive
+    # score 는 단독으로 verdict 승격에 기여하지 못한다. retrieval_score >= 3
+    # 이면서 다른 카테고리 evidence (breakdown 의 resource/network/process/
+    # episode/correlation/ml 중 점수 > 0 인 카테고리) 가 2 개 이상일 때만
+    # 점수 가산. 그 외에는 0 으로 잠그고 retrieval_evidence 본문은 그대로
+    # 유지 (검색/감사 용도). negative retrieval score 는 영향 없음 (gating
+    # 무관 그대로 가산).
+    _other_cats_positive = sum(
+        1 for k in ("breakdown_resource", "breakdown_network",
+                    "breakdown_process", "breakdown_episode",
+                    "breakdown_correlation", "breakdown_ml")
+        if int(indicators.get(k, 0) or 0) > 0
+    )
+    retrieval_gated = False
+    if retrieval_score_raw >= 3 and _other_cats_positive < 2:
+        retrieval_score = 0
+        retrieval_gated = True
+    else:
+        retrieval_score = retrieval_score_raw
+    if isinstance(retrieval_evidence, dict):
+        # 본문에 gating 결과를 노출 (감사/디버그용)
+        retrieval_evidence["retrieval_score_effective"] = int(retrieval_score)
+        retrieval_evidence["retrieval_score_gated"] = bool(retrieval_gated)
     adjusted_score = adjusted_score + retrieval_score
     # R2: retrieval/context 감점이 score 를 음수로 끌어내려 moving average 를
     # 오염시키는 것을 방지 — adjusted_score 의 하한은 0. (raw_score 는 영향 없음)
@@ -321,6 +365,9 @@ def analyze_pattern(metrics: MetricsRequest, history: deque, slot: str,
         metrics, sig_pack["avg_inbound"], sig_pack["dos_ratio"],
         is_gaming, is_compiling,
     )
+
+    # P1-1: local alert evidence (LOCAL_*) — separated from alerts[].
+    local_evidence = build_local_evidence(metrics)
 
     # P0-3 (docs/fp_field_analysis_v0.6.md §7-P0-3): evidence_meta 생성 +
     # promotion gating 적용. 단일 신호로 MEDIUM/HIGH 진입을 막되,
@@ -362,6 +409,7 @@ def analyze_pattern(metrics: MetricsRequest, history: deque, slot: str,
         "timetable_slot":   slot,
         "overall_severity": overall,
         "alerts":           alerts,
+        "local_evidence":   local_evidence,
         "verdict":          verdict,
         "policy_version":   policy_version,
         "signals_missing":  sig_pack.get("signals_missing", []),

@@ -94,7 +94,28 @@ def extract_signals(metrics: MetricsRequest, history: deque, slot: str,
     )
 
     dos_ratio     = {"class": 30, "free": 15}.get(slot, 15)
-    dos_spike_hit = avg_inbound > 0 and metrics.inbound_mb > avg_inbound * dos_ratio
+    # P1-2 (docs/fp_field_analysis_v0.6.md §7-P1-2): dos_spike 조건에
+    # 절대값 floor + 연속 발생 횟수 추가. baseline 0.03MB 일 때
+    # 2.5MB 도 80배 ratio 가 되어 정상 download burst 가 dos 로 잡히는
+    # 문제를 차단. 두 조건 모두 만족하지 못하면 streak reset.
+    ratio_hit = avg_inbound > 0 and metrics.inbound_mb > avg_inbound * dos_ratio
+    try:
+        from ..policy import get_scoring_policy
+        dd = get_scoring_policy().dos_detection
+        floor_mb = float(dd.min_inbound_mb_per_5s)
+        min_sustained = int(dd.min_sustained_count)
+    except Exception:
+        floor_mb = 0.0
+        min_sustained = 1
+    absolute_hit = metrics.inbound_mb >= floor_mb if floor_mb > 0 else True
+    from ..storage import pc_history_store as _phs
+    pc_id_for_streak = metrics.pc_id
+    if ratio_hit and absolute_hit:
+        new_streak = _phs.dos_spike_streak.get(pc_id_for_streak, 0) + 1
+    else:
+        new_streak = 0
+    _phs.dos_spike_streak[pc_id_for_streak] = new_streak
+    dos_spike_hit = (ratio_hit and absolute_hit and new_streak >= min_sustained)
 
     outbound_spike = (avg_outbound > 0.01
                       and metrics.outbound_mb > avg_outbound * 5
