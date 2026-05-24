@@ -98,28 +98,47 @@ P2:        ~0 / hour
 - P0+P1: 3,840 alerts/day
 - **P2: ~0 alerts/day (정상 사용 한정)**
 
-진짜 mining 시나리오 (xmrig 같은 fast-path) 는 여전히 즉시 HIGH/HIGH_RISK → `tools/anomaly_trigger.py` 로 검증 가능 (이전 측정에서 확인).
+진짜 mining 시나리오 (xmrig 같은 fast-path) 는 여전히 즉시 HIGH/HIGH_RISK → 아래 §7 에서 라이브 검증.
 
 ---
 
-## 7. 한계 + 미검증 영역
+## 7. Mining 탐지력 라이브 검증 (P2 이후)
+
+P2 가 backdoor 만 비활성화했지 mining fast-path 는 건드리지 않았다는 걸 코드 리뷰뿐 아니라 실측으로도 확인. `tools/anomaly_trigger.py` 실행 (xmrig.exe 시뮬, CPU 96%+ / GPU 95%+ / outbound 12 MB/s / 3333·7777 포트, 2초 간격 15회).
+
+| 항목 | 결과 |
+|---|---|
+| HTTP 응답 | 15/15 = `202 Accepted` (errs=0) |
+| `anomaly_history` 신규 (10 분 내) | **1 건** (P1 cooldown 60s/verdict 으로 첫 발화만 persist — 의도된 동작) |
+| severity / verdict | `HIGH` / `HIGH_RISK` |
+| `scores.final` | **14.0** |
+| `scores.process` | 10 (`known_miner=xmrig.exe`) |
+| top alert | `CONFIRMED_MINING` |
+| SUSPICIOUS_BACKDOOR 발화 | 없음 (의도대로) |
+
+→ P2 적용 후에도 **mining fast-path 즉시 HIGH 발화** 정상. backdoor demotion 이 다른 탐지를 깎아먹지 않음을 확인.
+
+---
+
+## 8. 한계 + 미검증 영역
 
 ### 본 측정의 한계
 - 단일 PC, 4시간 12분 — 학생 PC 다수 / 며칠 데이터 아님
-- **mining 동시 시뮬레이션 없음** — P2 가 진짜 mining 을 놓치는지 별도 검증 필요. fast-path (mining_known process + port) 는 P0/P1/P2 모두 우회하므로 이론상 안전.
+- "정상 사용 FP 0" 결론은 본 PC / 본 시간대 한정. **40대 실습실 운영 예측은 여전히 보수적으로** — 다수 PC 며칠 분량 long-run 추가 검증 필요.
 - 본 측정 시간대 (저녁~새벽) 가 게임/streaming 활동기 — 동일 시간대 다른 사용자의 결과는 다를 수 있음
+- mining 검증은 시뮬레이션 페이로드 기반 (실제 xmrig 바이너리 실행 아님). fast-path 신호 (known_miner + mining port) 발화 경로는 확인했지만, 진짜 mining 동작의 미세 신호 다양성은 별도.
 
 ### 다음 검증 권장
-- `tools/anomaly_trigger.py` 한 번 실행 → SUSPICIOUS_BACKDOOR 없이도 HIGH_RISK / SUSPICIOUS_GPU_MINING 정상 발화하는지 (예상: 정상)
-- 학생 PC 다수 며칠 분량 long-run
+- 학생 PC 다수 며칠 분량 long-run (P2 의 FP 0 이 호스트 일반화되는지)
+- 실제 xmrig 또는 cpuminer 바이너리 격리 환경 실행 (시뮬 페이로드와 신호 일치 여부)
 
-### 향후 개선 후보 (미스케줄)
+## 9. 향후 개선 후보 (미스케줄)
 - backdoor 탐지 자체를 다시 살리려면 더 강한 evidence (cmdline / digital signature / per-PID network mapping 등) 가 필요. 현재 RADA 수집 범위 밖이라 별도 검토 대상.
 - `persistent_ext` 가 여전히 `indicator_calculator.py:153` 의 `episode += 2` 로 약하게 남아 있음. evidence-only 톤으로 더 낮추는 건 별도 PR.
 
 ---
 
-## 8. 누적 PR 정리 (FP 시리즈)
+## 10. 누적 PR 정리 (FP 시리즈)
 
 | SHA | 단계 | 효과 |
 |---|---|---|
@@ -173,4 +192,11 @@ UNION ALL SELECT 'P2', * FROM p2;
 
 ---
 
-**결론**: P2 가 의도대로 backdoor verdict 승격 + SUSPICIOUS_BACKDOOR alert 생성 둘 다 완전 차단. **정상 사용 시 FP 사실상 0**. 진짜 mining 탐지력은 별도 라이브 검증 (fast-path) 으로 확인 필요. 운영 배포 안정선 도달.
+**최종 판정**
+- **P0/P1**: 알람 폭주 해결 (65.9% → 1.6%)
+- **P2**: 잔여 backdoor FP 해결 (1.6% → 0% on 단일 PC 4h12m)
+- **현재 단일 PC 정상 사용 FP**: 0건 (4h12m, P1 보다 부하 더 높은 조건)
+- **Mining 탐지력 유지**: `tools/anomaly_trigger.py` 라이브 검증 — HIGH/HIGH_RISK / `final=14.0` / `CONFIRMED_MINING` 즉시 발화 ✓
+- **남은 검증**: 학생 PC 40대 × 며칠 long-run (다수 PC 일반화)
+
+운영 배포 안정선 도달. 40대 실습실 전체 예측은 long-run 추가 검증 후 확정.
