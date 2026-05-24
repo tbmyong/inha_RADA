@@ -8,6 +8,7 @@ import com.lab.monitor.entity.AnomalyHistory;
 import com.lab.monitor.repository.AiJudgmentRepository;
 import com.lab.monitor.repository.AlertRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -41,6 +42,7 @@ public class AlertService {
             new ConcurrentHashMap<>();
     private final long cooldownSeconds;
 
+    @Autowired
     public AlertService(AlertRepository alertRepository,
                         AiJudgmentRepository aiJudgmentRepository) {
         this(alertRepository, aiJudgmentRepository, DEFAULT_COOLDOWN_SECONDS);
