@@ -52,4 +52,10 @@ ABSOLUTE_THRESHOLDS: dict = {
     "disk_io_mbps": 500.0,
 }
 
-HW_DEGRADATION_RATIO: float = 1.3
+# HW degradation 발화 임계 — baseline 평균 대비 최근 평균의 비율.
+# 이전 1.3 은 너무 민감해서 정상 dev burst (CPU baseline 15% → recent 21% = ratio 1.4)
+# 도 모두 발화. 필드 측정에서 MEDIUM/NORMAL 404 건의 76% (308 건) 가 단일 신호
+# LOCAL_HW_CPU_DEGRADATION 발화로 인한 false-positive 였다.
+# 2.0 으로 강화하면 정상 burst 는 거의 통과하고, 실제 노후화/throttling
+# (baseline 30% → recent 60%+ 같은) 패턴만 남는다.
+HW_DEGRADATION_RATIO: float = 2.0
