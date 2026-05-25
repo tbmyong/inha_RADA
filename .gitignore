@@ -14,6 +14,10 @@ server-spring/.gradle/
 server-spring/build/
 build/
 
+# PyInstaller (client_deployment.md)
+dist/
+*.spec
+
 # Local agent/tool state
 .claude/
 .codex/
