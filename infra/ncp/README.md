@@ -1,340 +1,86 @@
-# RADA NCP 인프라 셋업 가이드
+# RADA NCP 인프라 — 운영 가이드
 
-대상: NCP Compact / Standard 단일 서버 (Ubuntu 22.04, 4GB RAM, 2 vCPU 가정).
-구성:
-- Spring Boot API (`:8080`, 외부 노출)
-- FastAPI ML 서버 (`127.0.0.1:8000`, 내부 전용)
-- PostgreSQL 15 (`localhost:5432`, 내부 전용)
-- Grafana OSS (`:3000`, 외부 노출)
+> **현재 운영 방식 (2026-05 이후)**: Docker compose (`docker-compose.ncp.yml`) + NCP Cloud DB for PostgreSQL (managed) 조합.
+> 본 디렉터리의 systemd / 자가 설치 postgres 자료는 **레거시 (deprecated)** 로, 더 이상 운영 경로에서 참조되지 않는다.
 
-## 셋업 순서 (5 단계)
+## 현재 운영 — 두 단계로 진행
 
-각 스크립트는 `infra/ncp/scripts/` 하위에 있다. 서버에 업로드 후 순서대로 실행한다.
+### 1. 서버 셋업 (1회)
 
-### 1. ACG 규칙 설정 — `01-acg-setup.md`
-NCP 콘솔에서 ACG 를 다음과 같이 구성한다.
-- 외부 허용: `22` (관리자 IP 한정), `8080`, `3000`
-- 외부 차단(ACG 비등록): `8000`, `5432`
+NCP 콘솔 작업 + App VM SSH 셋업: [`docs/ncp_deployment.md`](../../docs/ncp_deployment.md)
 
-### 2. PostgreSQL 설치/튜닝 — `02-install-postgres.sh`
-```
-sudo DB_OWNER_PASSWORD='strong_app_pw' bash 02-install-postgres.sh
-```
-- `shared_buffers=128MB`, `effective_cache_size=1GB`, `max_connections=50`
-- `listen_addresses='localhost'` 로 외부 차단
-- DB(`pc_monitor`) 와 OWNER(`rada_app`) 만 생성. 테이블 DDL 은 백엔드 측에서 수행.
+요약:
+- App VM (Ubuntu 22.04, 4vCPU/16GB) — Docker compose 로 Spring + ML + Grafana 호스팅
+- Cloud DB for PostgreSQL (managed, 15.x) — pc_monitor DB + rada user + 사설 도메인
+- ACG: 22 (관리자 IP), 8080 (학생 PC 출구 / PoC 0.0.0.0/0), 3000 (관리자 + 학내망), 5432 (App VM 내부만)
+- Flyway V1~V8 첫 부팅 시 자동 적용
 
-### 3. Grafana 전용 READ-ONLY 계정 생성 — `03-create-grafana-reader.sh`
-```
-sudo GRAFANA_READER_PASSWORD='strong_reader_pw' bash 03-create-grafana-reader.sh
-```
-- `grafana_reader` 역할 + `GRANT SELECT` 만 부여
-- `ALTER DEFAULT PRIVILEGES` 로 향후 추가 테이블도 자동 SELECT 권한
+### 2. 클라이언트 배포 (학생 PC 40대)
 
-### 4. JDK 17 + Grafana 설치 — `04-install-jdk-grafana.sh`
-```
-sudo bash 04-install-jdk-grafana.sh
-```
-설치 후 다음 파일을 서버로 배포한다.
-- `infra/grafana/grafana.ini`           → `/etc/grafana/grafana.ini`
-- `infra/grafana/provisioning/...`      → `/etc/grafana/provisioning/...`
-- `infra/ncp/systemd/grafana-server.override.conf`
-  → `/etc/systemd/system/grafana-server.service.d/override.conf`
-  (`GRAFANA_READER_PASSWORD` 환경변수 주입)
+- API key 발급: [`docs/pc-provisioning.md`](../../docs/pc-provisioning.md)
+- PyInstaller exe + Task Scheduler: [`docs/client_deployment.md`](../../docs/client_deployment.md)
+- 마에스트로 이미지 환경 절차 포함 체크리스트: [`docs/deployment_checklist.md`](../../docs/deployment_checklist.md)
 
-### 5. 시스템 타임존 = UTC — `05-timezone-setup.sh`
-```
-sudo bash 05-timezone-setup.sh
-```
-시스템/DB 는 UTC, Grafana 표시는 Asia/Seoul.
+### 3. 운영 중 변경사항 배포
 
-### (부가) systemd / logrotate 설치
-```
-sudo cp infra/ncp/systemd/rada-springboot.service /etc/systemd/system/
-sudo cp infra/ncp/systemd/rada-fastapi.service    /etc/systemd/system/
-sudo cp infra/ncp/logrotate/rada                  /etc/logrotate.d/rada
-sudo useradd -r -s /usr/sbin/nologin rada || true
-sudo install -d -o rada -g rada /var/log/rada /opt/rada
-sudo systemctl daemon-reload
-sudo systemctl enable --now rada-springboot rada-fastapi
-```
+코드 / 대시보드 / scoring policy / ML 알고리즘 수정 시:
+[`docs/deploy_updates.md`](../../docs/deploy_updates.md)
 
-## 검증 절차
+## 본 디렉터리의 자산 — 운영 영향 없음 (legacy)
 
-### 1) 외부 포트 차단 확인 (다른 머신에서)
-```
-nc -zv <외부IP> 8000   # FAIL 이어야 함 (timeout / connection refused)
-nc -zv <외부IP> 5432   # FAIL 이어야 함
-nc -zv <외부IP> 8080   # OK
-nc -zv <외부IP> 3000   # OK
-```
-8000/5432 가 한 번이라도 열리면 ACG → uvicorn `--host` → `listen_addresses` 순으로 점검한다.
+| 경로 | 현재 운영에 사용? |
+|---|---|
+| `scripts/01-acg-setup.md` | 참고용 (실제 ACG 룰은 `docs/ncp_deployment.md` §1 기준) |
+| `scripts/02-install-postgres.sh` | ❌ Cloud DB managed 사용 — 자가 postgres 설치 안 함 |
+| `scripts/03-create-grafana-reader.sh` | ❌ Cloud DB managed 의 user 권한 모델로 대체 |
+| `scripts/04-install-jdk-grafana.sh` | ❌ Docker 컨테이너로 대체 |
+| `scripts/05-timezone-setup.sh` | 참고용 (Docker 컨테이너 TZ=Asia/Seoul 로 처리) |
+| `systemd/*.service` | ❌ systemd 네이티브 운영 안 함 |
+| `logrotate/rada` | ❌ Docker 로그 드라이버로 대체 |
 
-### 2) Grafana DataSource Test
-- `http://<외부IP>:3000` 접속 → 로그인
-- Connections → Data sources → `RADA-Postgres` → `Save & test`
-- "Database Connection OK" 응답 확인. 실패 시 `journalctl -u grafana-server` 의 `pq:` 라인을 본다.
+위 파일들은 **저장소 히스토리 보존 + 향후 비-Docker 환경 참고용** 으로 유지된다.
 
-### 3) AlertRule firing 시뮬레이션
-백엔드 V3 스키마 기준 `anomaly_history` 테이블이 존재한다는 가정.
-```
-sudo -u postgres psql -d pc_monitor -c "
-INSERT INTO anomaly_history (pc_id, detected_at, severity, anomaly_type, message)
-VALUES ('PC-TEST', NOW(), 'HIGH', 'cpu_spike', 'simulation');"
-```
-- Grafana → Alerting → Alert rules → `RADA High Risk Detected`
-- 1 분 내 `Pending` → `for: 1m` 경과 후 `Firing` 으로 전이하는지 확인.
-- 종료 시 위 INSERT 한 행을 삭제하면 5 분 후 자동 Resolved.
+## Quick reference
 
-### 4) 메모리 분배 확인
-```
-free -m
-# 권장 분배 (4096MB 기준)
-#  Spring Boot   : -Xmx512m  (실 사용 ~600MB)
-#  FastAPI       : ~500MB
-#  PostgreSQL    : shared_buffers 128MB + 워크메모리 ~150MB
-#  Grafana       : MemoryMax 512MB
-#  OS / 버퍼     : 잔여
-ps -o rss=,cmd= -C java,uvicorn,grafana-server,postgres | sort -nr | head -20
-```
+| 작업 | 명령 |
+|---|---|
+| 컨테이너 상태 | `docker compose -f /opt/rada/docker-compose.ncp.yml ps` |
+| Spring 로그 | `docker compose -f /opt/rada/docker-compose.ncp.yml logs -f spring-server` |
+| ML 로그 | `docker compose -f /opt/rada/docker-compose.ncp.yml logs -f ml-server` |
+| 코드 업데이트 | `cd /opt/rada && git pull && docker compose -f docker-compose.ncp.yml up -d --build` |
+| Grafana 재시작 (대시보드만 갱신) | `docker compose -f /opt/rada/docker-compose.ncp.yml restart grafana` |
+| DB 접속 | `PGPASSWORD="$DB_PASSWORD" psql -h "$DB_HOST" -U "$DB_USER" -d "$DB_NAME"` |
 
-## 스키마 매핑 (V5 확정)
-
-A팀 Spring JPA 엔티티 기준 V5 스키마. Grafana SQL 은 본 매핑에 정합한다.
-
-### `metrics_history` (시계열 리소스 메트릭)
-| 컬럼 | 타입 / 설명 |
-|------|-------------|
-| `pc_id` | text, FK → pc_info.pc_id |
-| `collected_at` | timestamptz, 수집 시각 |
-| `cpu_percent` | double precision (구 `cpu_usage`) |
-| `mem_percent` | double precision (구 `memory_usage`) |
-| `disk_read_mb` | double precision (구 `disk_usage` 분리) |
-| `disk_write_mb` | double precision (구 `disk_usage` 분리) |
-| `inbound_mb` | double precision (구 `network_in`) |
-| `outbound_mb` | double precision (구 `network_out`) |
-| `gpu_percent` | double precision (V3 신규) |
-| `vram_mb` | double precision (V3 신규) |
-| `extra` | jsonb |
-| (인덱스) | 복합 인덱스 `(pc_id, collected_at)` V3 신규 |
-
-### `anomaly_history`
-| 컬럼 | 타입 / 설명 |
-|------|-------------|
-| `id` | bigserial PK |
-| `pc_id` | text |
-| `detected_at` | timestamptz |
-| `severity` | text — `NORMAL` / `LOW` / `MEDIUM` / `HIGH` (V5) |
-| `anomaly_type` | text — ML/룰 원본 verdict 보존 (`mining_suspected`, `gpu_burst` 등) |
-| `message` | text |
-| `scores` | jsonb |
-| `alerts` | jsonb |
-
-### `ai_judgment_history`
-| 컬럼 | 타입 / 설명 |
-|------|-------------|
-| `pc_id` | text |
-| `judged_at` | timestamptz |
-| `anomaly_id` | bigint FK → anomaly_history.id |
-| `model_name` | text |
-| `verdict` | text |
-| `confidence` | double precision |
-| `judgment` | text (V5 신규, 직접 컬럼) |
-| `severity` | text (V5 신규, 직접 컬럼 — `NORMAL`/`LOW`/`MEDIUM`/`HIGH`) |
-| `reason` | text (V5 신규, 직접 컬럼) |
-| `action` | text (V5 신규, 직접 컬럼) |
-| `is_mock` | boolean (V5 신규, 직접 컬럼) |
-| `details` | jsonb (V5 이후 보조용 — 직접 컬럼 우선 사용) |
-
-### `pc_info`
-| 컬럼 | 타입 / 설명 |
-|------|-------------|
-| `pc_id` | text PK |
-| `hostname` | text |
-| `api_key` | text |
-| `is_active` | boolean |
-| `registered_at` | timestamptz |
-| `last_seen_at` | timestamptz |
-| `location` | text (V5 신규) |
-| `gpu_available` | boolean (V5 신규) |
-
-### severity 색상 매핑 (Grafana)
-| severity | 라벨 | 색상 |
-|----------|------|------|
-| `NORMAL` | 정상 | green |
-| `LOW` | 관찰 | light-yellow |
-| `MEDIUM` | 점검 필요 | yellow |
-| `HIGH` | 위험 | red |
-
-### FK 제약 안내
-`anomaly_history.pc_id`, `ai_judgment_history.anomaly_id` 등 V5 신규 FK 는
-기존 데이터 호환성을 위해 `NOT VALID` 로 추가될 수 있다. Grafana SQL 은
-`JOIN` 시 NULL 매칭이 발생할 수 있음을 가정하고 작성한다.
-
-### $slot 변수 제거 안내
-V5 정합화 라운드에서 메인 대시보드의 `$slot` 템플릿 변수를 제거했다 (스키마 미연동).
-수업/자율 슬롯 기능은 향후 백엔드 컬럼이 합류한 뒤 재도입한다.
-
-## 1단계 계약 정합 (P0)
-
-1단계(P0) 라운드에서 백엔드/ML 간 JSONB 페이로드 계약이 확정되었다. Grafana SQL 은
-다음 호환 우선순위 / 문자열 enum 을 가정하고 작성된다. DDL 변경은 없으며 SELECT 측
-COALESCE / CASE 만 정합화한다.
-
-### `anomaly_history.scores` JSONB 구조
-
-ML 서버 버전별로 score 키 위치가 다르므로, Grafana 의 anomaly_score 추출은 다음
-**호환 우선순위** 를 따른다 (NULL 이면 다음 후보로 fallback).
-
-1. `scores->'score_breakdown'->>'final'` — 1단계 신규 정식 위치 (final score)
-2. `scores->>'final'` — 중간 단계 호환
-3. `scores->>'total'` — 레거시 V3/V4 호환
-4. `0` — 모두 NULL 일 때 기본값
-
-예시 페이로드:
-```json
-{
-  "score_breakdown": { "final": 42.5, "cpu": 30.0, "gpu": 12.5 },
-  "final": 42.5,
-  "total": 42.5
-}
-```
-
-#### `score_breakdown` 9키 의미 (7단계 확정)
-
-7단계(retrieval-augmented evidence layer) 라운드에서 `retrieval` 키가 추가되어
-총 9키 구조로 확정되었다. `anomaly_history.scores` JSONB 컬럼 변경 없이 키만 추가되었으며,
-Grafana 패널은 `COALESCE(... ,0)` 로 미존재 레거시 행에 대해서도 안전 표시된다.
-
-| key | 의미 | 비고 |
-|-----|------|------|
-| resource | CPU/MEM/GPU/VRAM 자원 기반 부분 점수 | 룰 + 통계 |
-| network | inbound/outbound 트래픽 이상 부분 점수 | 룰 |
-| process | top_processes 분포 / 신규 프로세스 부분 점수 | 룰 |
-| episode | 연속 이상 에피소드 가중치 | 시계열 누적 |
-| correlation | 자원-네트워크-프로세스 상관 점수 | 룰 |
-| ml | FastAPI ML 모델 부분 점수 | 모델 의존 |
-| retrieval | retrieval-augmented evidence 기반 부분 점수 (7단계 신규) | top-k 유사 세그먼트 |
-| context_discount | 학습/회의 시간대 등 컨텍스트 감산값 (음수 가능) | 룰 |
-| final | 최종 합산 점수 (Grafana anomaly_score 표시 기준) | severity 산출에 사용 |
-
-Grafana `rada-pc-detail` 패널 id=7 은 위 키들을 다음 SQL 로 추출한다 (NULL 은 0 placeholder):
-
-```sql
-SELECT
-  COALESCE((scores->'score_breakdown'->>'resource')::float, 0)         AS resource,
-  COALESCE((scores->'score_breakdown'->>'network')::float, 0)          AS network,
-  COALESCE((scores->'score_breakdown'->>'process')::float, 0)          AS process,
-  COALESCE((scores->'score_breakdown'->>'episode')::float, 0)          AS episode,
-  COALESCE((scores->'score_breakdown'->>'correlation')::float, 0)      AS correlation,
-  COALESCE((scores->'score_breakdown'->>'ml')::float, 0)               AS ml,
-  COALESCE((scores->'score_breakdown'->>'retrieval')::float, 0)        AS retrieval,
-  COALESCE((scores->'score_breakdown'->>'context_discount')::float, 0) AS context_discount,
-  COALESCE((scores->'score_breakdown'->>'final')::float, 0)            AS final
-FROM anomaly_history
-WHERE pc_id = '$pc_id' AND $__timeFilter(detected_at)
-ORDER BY detected_at DESC
-LIMIT 1;
-```
-
-### `ai_judgment_history.verdict` 4단계 enum
-
-| verdict | 의미 |
-|---------|------|
-| `NORMAL` | 이상 없음 |
-| `OBSERVE` | 관찰 필요 (저위험) |
-| `SUSPICIOUS` | 의심 (중위험) |
-| `HIGH_RISK` | 고위험 (즉시 조치) |
-
-Grafana 표시/색상 매핑 시 위 4단계 문자열을 그대로 사용한다. severity 컬럼
-(`NORMAL`/`LOW`/`MEDIUM`/`HIGH`) 과는 별개 enum 이며, 매핑 변경은 본 라운드 범위 밖.
-
-### `hw_degradation` 문자열 enum
-
-ML/AI 판정의 하드웨어 열화 상태는 다음 3단계 문자열 enum 으로 통일한다.
-
-| 값 | 의미 |
-|----|------|
-| `NONE` | 열화 징후 없음 |
-| `SUSPECTED` | 열화 의심 |
-| `CONFIRMED` | 열화 확정 |
-
-JSONB 페이로드 내 `hw_degradation` 키 또는 별도 컬럼으로 노출될 경우 모두 위
-문자열 값을 가정한다 (boolean / 정수 코드 아님).
-
-### TTL / 보존 정책
-- `metrics_history` 만 **30 일 보존** 으로 A팀 Spring `@Scheduled` 가 주기 삭제한다.
-- `anomaly_history`, `ai_judgment_history` 의 보존 기간은 V5 시점에는 미정 — 향후 검토.
-- 인프라 측 cron / pg_partman 은 사용하지 않는다.
-
-## Configuration 정책 파일 (4단계)
-
-ML 서버의 스코어링 규칙과 프로세스 allowlist 는 코드가 아니라 YAML 정책 파일로
-외부화된다. B팀 4단계 산출물이며, 운영 측면에서 다음 사항을 따른다.
-
-### 파일 위치 및 내용 요약
-
-| 파일 | 경로 | 내용 요약 |
-|------|------|-----------|
-| `scoring_policy.yaml` | `ml_server/config_yaml/scoring_policy.yaml` | EDR 스코어링 가중치 / 카테고리별 임계값 / 컨텍스트 감산 계수 / verdict 경계값 / `policy_version` 메타 |
-| `allowlist.yaml` | `ml_server/config_yaml/allowlist.yaml` | 학습/회의 등 정상 컨텍스트 프로세스 이름 화이트리스트 (감산 트리거) |
-
-### 디렉토리 이름이 `config_yaml/` 인 이유
-
-작업지시서 §4.3 권장 경로는 `ml_server/config/` 였으나, ML 서버 코드 트리에 이미
-`ml_server/config.py` (단일 파일) 이 존재하여 **Python import / 패키지 모호성** 을
-회피하기 위해 B팀 합의로 `config_yaml/` 디렉토리명을 채택했다. 정책 파일과 기존
-`config.py` 는 서로 다른 책임을 가지며 양쪽 모두 유지된다.
-
-### 환경변수 override 절차
-
-기본 경로(`/opt/rada/ml_server/config_yaml`) 이외의 위치에서 정책을 로딩하려면
-`RADA_POLICY_DIR` 환경변수를 사용한다.
+`.env` 환경변수 (App VM `/opt/rada/.env`):
 
 ```
-# 임시 테스트 (수동 실행)
-sudo RADA_POLICY_DIR=/tmp/rada-policy-test \
-     /opt/rada/venv/bin/uvicorn ml_server:app --host 127.0.0.1 --port 8001
-
-# 영구 적용 (systemd) — 본 저장소의 rada-fastapi.service 에 이미 기본값 주입됨
-#   Environment="RADA_POLICY_DIR=/opt/rada/ml_server/config_yaml"
-# 다른 경로를 쓰려면 override drop-in 으로만 변경한다:
-sudo systemctl edit rada-fastapi
-# → [Service] Environment="RADA_POLICY_DIR=/opt/rada/policies/v0.5"
+DB_HOST=<Cloud DB Private Domain 또는 IP>
+DB_PORT=5432
+DB_NAME=pc_monitor
+DB_USER=rada
+DB_PASSWORD=<강한 비밀번호>
+DB_SCHEMA=pc_monitor
+API_KEY_PEPPER=<강한 무작위 hex>
+GF_SECURITY_ADMIN_USER=rada_admin
+GF_SECURITY_ADMIN_PASSWORD=<강한 무작위>
+ANTHROPIC_API_KEY=<선택 — AI agent 활성화 시>
 ```
 
-### 정책 변경 → 서버 재시작 필요
+## Retention (40 PC 대응)
 
-YAML 파일은 **프로세스 시작 시점에만 로딩** 되며 핫리로드되지 않는다. 정책 변경
-후에는 반드시 다음 명령으로 재시작한다.
+40 PC × 5초 주기 = 약 1.4 GB/일. 14일 retention 으로 약 20 GB 유지. NCP VM crontab:
 
+```bash
+0 3 * * * /opt/rada/tools/cleanup_old_data.sh >> /var/log/rada-cleanup.log 2>&1
 ```
-sudo systemctl restart rada-fastapi
-```
 
-또한 정책 파일이 잘못된 YAML 이거나 스키마가 깨진 경우 **서버 시작이 실패한다
-(fail-fast)**. `journalctl -u rada-fastapi -n 100` 로 파싱 에러 위치를 확인한 뒤
-원본 정책으로 롤백 → 재시작 한다.
+스크립트: `/opt/rada/tools/cleanup_old_data.sh` (이미 등록). 14일 metrics + 90일 anomaly/AI 판단 보존.
 
-### `policy_version` 운영 절차
+Cloud DB 스토리지는 **최소 30GB** 권장 (10GB 면 1주일 만에 가득).
 
-`scoring_policy.yaml` 최상단의 `policy_version: scoring-v0.5.0` 키는 ML 서버가
-DB `anomaly_history.scores.policy_version` JSONB 필드에 그대로 기록한다. 따라서
-운영상 다음 절차를 권장한다.
+## FP 검증 결과 (NCP 환경)
 
-1. 정책 변경 시 `policy_version` 값을 **반드시 함께 갱신** 한다 (e.g. `scoring-v0.4.1`).
-2. 변경 커밋에 Git tag 를 부착한다 (e.g. `git tag policy-scoring-v0.4.1`).
-3. 배포 후 `anomaly_history.scores->>'policy_version'` 으로 어느 정책에서 산출된
-   점수인지 추적 가능하다 (회귀 분석 / 사후 검증 시 사용).
-4. tag 와 DB `policy_version` 값이 일치하지 않으면 배포 누락을 의심한다.
+`docs/fp_field_analysis_ncp.md` — 정상 사용 7h39m / FP 0건, mining 탐지 (fast-path + stealth) 즉시 발화.
 
-## 의존성 / 한계
-
-- 본 인프라 코드는 **DDL 을 수행하지 않는다.** (`CREATE TABLE`, `ALTER`, 인덱스 정의 없음.)
-  - `(pc_id, collected_at)` 복합 인덱스는 A팀 JPA `@Index` 선언에 의존한다.
-- AlertRule contact point (`grafana-notifiers` / Slack / Email) 는 별도 라운드에서 작업한다.
-  현재는 firing 상태만 Grafana UI 에서 확인 가능.
-- 단일 서버 구성이므로 가용성/백업은 별도로 설계해야 한다 (NCP Object Storage 로
-  `pg_dump` 일일 업로드 권장).
-- Grafana 초기 admin 비밀번호(`grafana.ini`)는 최초 로그인 시 즉시 변경할 것.
-- `ml_server/config_yaml/` 디렉토리 존재 및 YAML 유효성은 B팀 4단계 산출물에 의존한다.
+4단계 누적:
+- Pre-P0/P1: 65.9% → P0+P1: 1.6% → P2 로컬: 0% → **NCP 운영: 0.000%** ✓

@@ -1,14 +1,15 @@
 # RADA 로컬 Docker 개발 환경
 
-> 이 문서는 **로컬 dev/test 전용**입니다. NCP 운영 배포(systemd)는 영향 없음 — `infra/ncp/` 그대로 사용.
+> 이 문서는 **로컬 dev/test 전용**입니다. NCP 운영 배포는 별도 (`docker-compose.ncp.yml` + Cloud DB managed).
+> NCP 운영 절차는 [`ncp_deployment.md`](ncp_deployment.md) 참조.
 
 ## 구성 요소 (Client 제외)
 
 | 서비스 | 포트(호스트) | 컨테이너 | 비고 |
 |--------|------|---------|------|
-| postgres | 5432 | rada-postgres | named volume `rada_pgdata` |
+| postgres | 25432 | rada-postgres | named volume `rada_pgdata`. Windows Hyper-V 예약 포트 회피로 25432 매핑 |
 | ml-server | 8000 | rada-ml | FastAPI, `RADA_POLICY_DIR=/app/ml_server/config_yaml` |
-| spring-server | 8080 | rada-spring | Flyway V1~V7 자동 실행, profile=`docker` |
+| spring-server | 8080 | rada-spring | Flyway V1~V8 자동 실행, profile=`docker` |
 | grafana | 3000 | rada-grafana | 대시보드 + 데이터소스 provisioning 자동 로드 |
 
 > Client(`client.py`)는 호스트 OS에서 네이티브로 실행해 `http://localhost:8080`으로 메트릭을 전송합니다.
