@@ -25,11 +25,12 @@ mining_port) 모두 회피하고도 RADA 가 잡는지 검증.
 """
 import time
 from datetime import datetime, timezone, timedelta
+import os
 import requests
 
-URL = "http://localhost:8080/api/metrics"
-API_KEY = "smoke-key"
-PC_ID = "pc-stealth"
+URL = os.environ.get("RADA_TRIGGER_URL", "http://localhost:8080/api/metrics")
+API_KEY = os.environ.get("RADA_TRIGGER_API_KEY", "smoke-key")
+PC_ID = os.environ.get("RADA_TRIGGER_PC_ID", "pc-stealth")
 KST = timezone(timedelta(hours=9))
 
 # AppData\Roaming 경로 — temp 아니지만 appdata_exec 트리거

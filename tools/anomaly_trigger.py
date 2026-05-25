@@ -7,13 +7,14 @@ scoring v0.5.0 기준 점수 기대값:
 - correlation: cpu+gpu+net_out 동시 → +2
 - final: 합산 9~14 (SUSPICIOUS) 또는 14+ (HIGH_RISK)
 """
+import os
 import time
 from datetime import datetime, timezone, timedelta
 import requests
 
-URL = "http://localhost:8080/api/metrics"
-API_KEY = "smoke-key"
-PC_ID = "pc-smoke"
+URL = os.environ.get("RADA_TRIGGER_URL", "http://localhost:8080/api/metrics")
+API_KEY = os.environ.get("RADA_TRIGGER_API_KEY", "smoke-key")
+PC_ID = os.environ.get("RADA_TRIGGER_PC_ID", "pc-smoke")
 KST = timezone(timedelta(hours=9))
 XMRIG_PATH = r"C:\Users\Public\xmrig.exe"
 CHROME_PATH = r"C:\Program Files\Google\Chrome\chrome.exe"
