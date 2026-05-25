@@ -1,7 +1,7 @@
 # RADA 로컬 Docker 개발 환경
 
 > 이 문서는 **로컬 dev/test 전용**입니다. NCP 운영 배포는 별도 (`docker-compose.ncp.yml` + Cloud DB managed).
-> NCP 운영 절차는 [`ncp_deployment.md`](ncp_deployment.md) 참조.
+> NCP 운영 절차는 [`ncp_deployment.md`](../guides/ncp_deployment.md) 참조.
 
 ## 구성 요소 (Client 제외)
 

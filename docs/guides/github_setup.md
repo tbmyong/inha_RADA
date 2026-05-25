@@ -64,7 +64,7 @@ inha_RADA/
 
 ## 2. Fork (개인 작업용)
 
-팀원이 본인 fork 에서 작업하고 PR 로 main 에 합치는 흐름. 자세한 절차는 [`team-guide.md`](team-guide.md).
+팀원이 본인 fork 에서 작업하고 PR 로 main 에 합치는 흐름. 자세한 절차는 [`team-guide.md`](../reference/team-guide.md).
 
 빠른 시작:
 
@@ -224,7 +224,7 @@ main 머지 후 [`deploy_updates.md`](deploy_updates.md) 절차로 NCP VM 에 pu
 
 ## 참고 문서
 
-- [`team-guide.md`](team-guide.md) — Fork 워크플로우 자세히
-- [`branch-protection.md`](branch-protection.md) — main 브랜치 보호 정책
-- [`docker-dev.md`](docker-dev.md) — 로컬 docker dev 상세
+- [`team-guide.md`](../reference/team-guide.md) — Fork 워크플로우 자세히
+- [`branch-protection.md`](../reference/branch-protection.md) — main 브랜치 보호 정책
+- [`docker-dev.md`](../reference/docker-dev.md) — 로컬 docker dev 상세
 - [`deploy_updates.md`](deploy_updates.md) — 운영 변경사항 배포

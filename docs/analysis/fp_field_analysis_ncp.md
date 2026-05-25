@@ -1,6 +1,6 @@
 # RADA NCP Field Verification
 
-NCP (Naver Cloud Platform) 운영 환경 — 단일 App VM (Ubuntu 22.04 / Docker) + Cloud DB for PostgreSQL (managed) — 으로의 마이그레이션 후 첫 정상 사용 측정 (7시간 39분). 본 문서는 `docs/fp_field_analysis_post_p2.md` (로컬 P2 검증, 4h12m) 의 후속.
+NCP (Naver Cloud Platform) 운영 환경 — 단일 App VM (Ubuntu 22.04 / Docker) + Cloud DB for PostgreSQL (managed) — 으로의 마이그레이션 후 첫 정상 사용 측정 (7시간 39분). 본 문서는 `docs/analysis/fp_field_analysis_post_p2.md` (로컬 P2 검증, 4h12m) 의 후속.
 
 **핵심 결론**: NCP 운영 환경에서 정상 PC 7h 39m 동안 anomaly **0건**. 22시 cpu spike (cpu_max 71.8%) 포함 무거운 부하 구간에서도 false positive 없음. P2 검증의 핵심 결과 (정상 사용 FP=0) 가 NCP managed 인프라에서 **거의 2배 긴 시간** 동안 재현. mining trigger (fast-path + stealth) 양쪽 모두 즉시 HIGH_RISK 발화 — 알고리즘 NCP 마이그레이션 무결성 검증 완료.
 

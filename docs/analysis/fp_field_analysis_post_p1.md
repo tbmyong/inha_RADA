@@ -1,6 +1,6 @@
 # RADA Post-P0/P1 Field Verification
 
-P0 (3건) + HW threshold 강화 + P1 (4건) 적용 후 동일 호스트 / 동일 사용 패턴으로 4시간 38분 재측정한 결과. 본 문서는 `docs/fp_field_analysis_v0.6.md` 의 후속.
+P0 (3건) + HW threshold 강화 + P1 (4건) 적용 후 동일 호스트 / 동일 사용 패턴으로 4시간 38분 재측정한 결과. 본 문서는 `docs/analysis/fp_field_analysis_v0.6.md` 의 후속.
 
 **핵심 결론**: anomaly_history 생성률이 **65.9% → 1.6% (41× 감소)**. severity-verdict 불일치 707건 → 0건. 운영 알람 폭주 문제 사실상 해소.
 

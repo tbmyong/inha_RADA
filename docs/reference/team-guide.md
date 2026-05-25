@@ -468,12 +468,12 @@ docker compose up -d --build
 
 - [`README.md`](../README.md) — 프로젝트 개요, 빠른 시작
 - [`CONTRIBUTING.md`](../CONTRIBUTING.md) — 일반 커밋 규칙
-- [`docs/docker-dev.md`](docker-dev.md) — dev 환경 상세
-- [`docs/cryptojacking_detection_patterns.md`](cryptojacking_detection_patterns.md) — mining 탐지 패턴 카탈로그
-- [`docs/pc-provisioning.md`](pc-provisioning.md) — PC 일괄 등록 도구
-- [`docs/retrieval_augmented_timeseries_manual.md`](retrieval_augmented_timeseries_manual.md) — retrieval 레이어 명세
-- [`docs/branch-protection.md`](branch-protection.md) — GitHub branch 보호 설정
-- [`docs/mcp-setup.md`](mcp-setup.md) — MCP 서버 설정 (선택)
+- [`docs/reference/docker-dev.md`](docker-dev.md) — dev 환경 상세
+- [`docs/reference/cryptojacking_detection_patterns.md`](cryptojacking_detection_patterns.md) — mining 탐지 패턴 카탈로그
+- [`docs/reference/pc-provisioning.md`](pc-provisioning.md) — PC 일괄 등록 도구
+- [`docs/reference/retrieval_augmented_timeseries_manual.md`](retrieval_augmented_timeseries_manual.md) — retrieval 레이어 명세
+- [`docs/reference/branch-protection.md`](branch-protection.md) — GitHub branch 보호 설정
+- [`docs/reference/mcp-setup.md`](mcp-setup.md) — MCP 서버 설정 (선택)
 
 ---
 

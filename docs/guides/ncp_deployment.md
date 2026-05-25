@@ -618,6 +618,6 @@ FROM pc_monitor.metrics_history GROUP BY pc_id ORDER BY MAX(collected_at) DESC L
 ## 참고
 
 - [`deployment_checklist.md`](deployment_checklist.md) — 학생 PC 40대 배포 체크리스트
-- [`fp_field_analysis_ncp.md`](fp_field_analysis_ncp.md) — NCP 환경 FP 검증 리포트
+- [`fp_field_analysis_ncp.md`](../analysis/fp_field_analysis_ncp.md) — NCP 환경 FP 검증 리포트
 - [`deploy_updates.md`](deploy_updates.md) — 변경사항 배포 워크플로우
-- [`pc-provisioning.md`](pc-provisioning.md) — API key 발급/회전
+- [`pc-provisioning.md`](../reference/pc-provisioning.md) — API key 발급/회전

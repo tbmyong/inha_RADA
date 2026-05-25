@@ -1,6 +1,6 @@
 # RADA Post-P2 Field Verification
 
-P2 (backdoor demotion) 적용 후 동일 호스트로 4시간 12분 정상 사용 재측정. 본 문서는 `docs/fp_field_analysis_v0.6.md` → `docs/fp_field_analysis_post_p1.md` 의 후속 (3차 측정).
+P2 (backdoor demotion) 적용 후 동일 호스트로 4시간 12분 정상 사용 재측정. 본 문서는 `docs/analysis/fp_field_analysis_v0.6.md` → `docs/analysis/fp_field_analysis_post_p1.md` 의 후속 (3차 측정).
 
 **핵심 결론**: P2 적용 후 정상 사용 4h12m 동안 anomaly_history 신규 **0건**. P1 단계 (4h38m / 54건) 대비 100% 제거. 더 중요한 발견: **본 측정의 부하는 P1 측정보다 더 무거웠음** (cpu_avg 9.4 → 16.9%, mem_max 78 → 87%) — 사용 적어서 0이 아니라 알고리즘이 제대로 작동해서 0.
 

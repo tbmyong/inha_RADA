@@ -547,6 +547,6 @@ schtasks /Create /TN "RADA Watchdog" `
 ## 참고
 
 - [`ncp_deployment.md`](ncp_deployment.md) — NCP 서버 셋업 (선행)
-- [`pc-provisioning.md`](pc-provisioning.md) — API key 발급/회전 상세
-- [`fp_field_analysis_ncp.md`](fp_field_analysis_ncp.md) — NCP 환경 검증 결과
+- [`pc-provisioning.md`](../reference/pc-provisioning.md) — API key 발급/회전 상세
+- [`fp_field_analysis_ncp.md`](../analysis/fp_field_analysis_ncp.md) — NCP 환경 검증 결과
 - `client_core/README.md` — 클라이언트 모듈 구조

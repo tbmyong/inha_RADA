@@ -7,7 +7,7 @@
 
 ### 1. 서버 셋업 (1회)
 
-NCP 콘솔 작업 + App VM SSH 셋업: [`docs/ncp_deployment.md`](../../docs/ncp_deployment.md)
+NCP 콘솔 작업 + App VM SSH 셋업: [`docs/guides/ncp_deployment.md`](../../docs/guides/ncp_deployment.md)
 
 요약:
 - App VM (Ubuntu 22.04, 4vCPU/16GB) — Docker compose 로 Spring + ML + Grafana 호스팅
@@ -17,20 +17,20 @@ NCP 콘솔 작업 + App VM SSH 셋업: [`docs/ncp_deployment.md`](../../docs/ncp
 
 ### 2. 클라이언트 배포 (학생 PC 40대)
 
-- API key 발급: [`docs/pc-provisioning.md`](../../docs/pc-provisioning.md)
-- PyInstaller exe + Task Scheduler: [`docs/client_deployment.md`](../../docs/client_deployment.md)
-- 마에스트로 이미지 환경 절차 포함 체크리스트: [`docs/deployment_checklist.md`](../../docs/deployment_checklist.md)
+- API key 발급: [`docs/reference/pc-provisioning.md`](../../docs/reference/pc-provisioning.md)
+- PyInstaller exe + Task Scheduler: [`docs/guides/client_deployment.md`](../../docs/guides/client_deployment.md)
+- 마에스트로 이미지 환경 절차 포함 체크리스트: [`docs/guides/deployment_checklist.md`](../../docs/guides/deployment_checklist.md)
 
 ### 3. 운영 중 변경사항 배포
 
 코드 / 대시보드 / scoring policy / ML 알고리즘 수정 시:
-[`docs/deploy_updates.md`](../../docs/deploy_updates.md)
+[`docs/guides/deploy_updates.md`](../../docs/guides/deploy_updates.md)
 
 ## 본 디렉터리의 자산 — 운영 영향 없음 (legacy)
 
 | 경로 | 현재 운영에 사용? |
 |---|---|
-| `scripts/01-acg-setup.md` | 참고용 (실제 ACG 룰은 `docs/ncp_deployment.md` §1 기준) |
+| `scripts/01-acg-setup.md` | 참고용 (실제 ACG 룰은 `docs/guides/ncp_deployment.md` §1 기준) |
 | `scripts/02-install-postgres.sh` | ❌ Cloud DB managed 사용 — 자가 postgres 설치 안 함 |
 | `scripts/03-create-grafana-reader.sh` | ❌ Cloud DB managed 의 user 권한 모델로 대체 |
 | `scripts/04-install-jdk-grafana.sh` | ❌ Docker 컨테이너로 대체 |
@@ -80,7 +80,7 @@ Cloud DB 스토리지는 **최소 30GB** 권장 (10GB 면 1주일 만에 가득)
 
 ## FP 검증 결과 (NCP 환경)
 
-`docs/fp_field_analysis_ncp.md` — 정상 사용 7h39m / FP 0건, mining 탐지 (fast-path + stealth) 즉시 발화.
+`docs/analysis/fp_field_analysis_ncp.md` — 정상 사용 7h39m / FP 0건, mining 탐지 (fast-path + stealth) 즉시 발화.
 
 4단계 누적:
 - Pre-P0/P1: 65.9% → P0+P1: 1.6% → P2 로컬: 0% → **NCP 운영: 0.000%** ✓
