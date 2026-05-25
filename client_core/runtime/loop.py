@@ -179,14 +179,19 @@ class ClientRuntime:
                 icon = "[!]" if a["severity"] == "HIGH" else "[*]"
                 print(f"    {icon} [{a['type']}] {a['detail']}")
 
-        if server_result:
-            sev = server_result.get("overall_severity", "UNKNOWN")
-            verdict = server_result.get("verdict", "NORMAL")
-            print(
-                f"  ML서버: {sev}  verdict={verdict}  "
-                f"(시간표:{server_result.get('timetable_slot','-')}  "
-                f"히스토리:{server_result.get('history_size',0)}건)"
-            )
+        if server_result is not None:
+            # springboot 모드는 202 Accepted + 빈 body (server_result == {})
+            # mlserver 모드는 JSON 본문 (verdict / overall_severity) 포함
+            if server_result and ("overall_severity" in server_result or "verdict" in server_result):
+                sev = server_result.get("overall_severity", "ACK")
+                verdict = server_result.get("verdict", "ACK")
+                print(
+                    f"  서버: {sev}  verdict={verdict}  "
+                    f"(시간표:{server_result.get('timetable_slot','-')}  "
+                    f"히스토리:{server_result.get('history_size',0)}건)"
+                )
+            else:
+                print("  서버: 전송 OK (비동기 분석)")
             for alert in server_result.get("alerts", []):
                 score = f" (점수:{alert.get('score','')})" if alert.get("score") else ""
                 print(f"    └ [{alert['severity']}] {alert['detail']}{score}")

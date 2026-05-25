@@ -27,7 +27,9 @@ public class MetricsService {
         // forward and the entity column see the authoritative value.
         String bodyPcId = req.getPcId();
         if (bodyPcId != null && !bodyPcId.equals(pcId)) {
-            log.warn("pcId mismatch: header={} body={}, using header", pcId, bodyPcId);
+            // Client 가 MAC 기반 pc_id 를 보내는 경우 정상 흐름.
+            // API key 가 binding 한 header pc_id 가 truth source.
+            log.debug("pcId override: header={} body={}, using header", pcId, bodyPcId);
         }
         req.setPcId(pcId);
         MetricsHistory entity = MetricsHistory.builder()
