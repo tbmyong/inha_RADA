@@ -4,7 +4,7 @@
 
 **R**esource **A**nomaly **D**etection **A**gent — 연구실 PC 40대 규모 자원 모니터링 및
 이상 탐지 플랫폼. 클라이언트가 5초 주기로 메트릭을 수집해 Spring Boot 수신 서버로 전송하고,
-FastAPI ML 서버가 EDR 스타일 스코어링으로 채굴/노후화/오작동을 판정하며, Grafana 가 LAB-01
+FastAPI ML 서버가 scoring으로 채굴/노후화/오작동을 판정하며, Grafana 가 LAB-01
 허니컴 대시보드로 상태를 시각화한다.
 
 ## 컴포넌트
