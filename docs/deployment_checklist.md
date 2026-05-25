@@ -1,12 +1,21 @@
 # RADA 배포 최종 체크리스트
 
+> **이전 단계**: [`client_deployment.md`](client_deployment.md) (Phase 1~4 — 빌드 + 시범 + 패키지)
+> **다음 단계**: [`deploy_updates.md`](deploy_updates.md) (운영 중 변경사항 배포)
+
 NCP 배포 + 학생 PC 운영 직전 체크리스트. 본 문서를 따라 순서대로 진행하면 학생 PC 40대 배포 + 운영 안정화까지 완료됨.
 
+작업 순서 (선행 → 본 문서 → 후행):
+
+```
+[github_setup.md]  →  [ncp_deployment.md]  →  [client_deployment.md]  →  ★ [deployment_checklist.md] ★  →  [deploy_updates.md]
+```
+
 본 문서의 짝:
-- `docs/ncp_deployment.md` — NCP 서버 셋업 (이미 완료)
-- `docs/client_deployment.md` — 클라이언트 빌드/배포 매뉴얼
-- `docs/deploy_updates.md` — 운영 중 변경사항 배포 절차
-- `docs/fp_field_analysis_ncp.md` — NCP 환경 FP 검증 결과
+- [`ncp_deployment.md`](ncp_deployment.md) — NCP 서버 셋업 (선행 완료)
+- [`client_deployment.md`](client_deployment.md) — 클라이언트 빌드/배포 매뉴얼 (선행 완료)
+- [`deploy_updates.md`](deploy_updates.md) — 운영 중 변경사항 배포 절차 (후행)
+- [`fp_field_analysis_ncp.md`](fp_field_analysis_ncp.md) — NCP 환경 FP 검증 결과 (참고)
 
 ---
 

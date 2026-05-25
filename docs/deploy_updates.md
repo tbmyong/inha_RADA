@@ -1,6 +1,16 @@
 # 변경사항 배포 워크플로우
 
+> **이전 단계**: [`deployment_checklist.md`](deployment_checklist.md) (학생 PC 40대 배포 완료, 운영 시작됨)
+
 코드/대시보드/ML 알고리즘 변경 시 **개발자 PC → GitHub → NCP App VM → 학생 PC** 까지 흘러가는 표준 절차.
+
+작업 순서 (전체 흐름):
+
+```
+[github_setup.md]  →  [ncp_deployment.md]  →  [client_deployment.md]  →  [deployment_checklist.md]  →  ★ [deploy_updates.md] ★
+```
+
+운영 중 어떤 종류의 변경이든 본 문서가 SSOT.
 
 ## 0. 단일 진실 원천 (SSOT)
 

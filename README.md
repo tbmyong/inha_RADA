@@ -118,15 +118,31 @@ pwsh -File scripts/onboard.ps1
 
 ## 주요 문서 색인
 
-운영 절차 / 검증 / 트러블슈팅 통합:
+### 처음 배포하는 사람은 이 순서대로 (작업 흐름)
 
-- [`docs/ncp_deployment.md`](docs/ncp_deployment.md) — NCP 서버 셋업 walkthrough
-- [`docs/client_deployment.md`](docs/client_deployment.md) — PyInstaller + Task Scheduler 클라이언트 배포
-- [`docs/deploy_updates.md`](docs/deploy_updates.md) — 변경사항 배포 워크플로우
-- [`docs/deployment_checklist.md`](docs/deployment_checklist.md) — 학생 PC 40대 배포 체크리스트
-- [`docs/fp_field_analysis_ncp.md`](docs/fp_field_analysis_ncp.md) — NCP 환경 FP 검증 리포트
-- [`docs/pc-provisioning.md`](docs/pc-provisioning.md) — API key 발급/회전
-- [`docs/team-guide.md`](docs/team-guide.md) — Fork 워크플로우
+1. **[`docs/github_setup.md`](docs/github_setup.md)** — Repo fork/clone, `.env` 준비, 로컬 dev 검증
+2. **[`docs/ncp_deployment.md`](docs/ncp_deployment.md)** — NCP 콘솔 + App VM SSH + Docker compose + Flyway (실전 함정 포함)
+3. **[`docs/client_deployment.md`](docs/client_deployment.md)** — PyInstaller 빌드 + install.bat + 마에스트로 case A
+4. **[`docs/deployment_checklist.md`](docs/deployment_checklist.md)** — 학생 PC 40대 배포 체크리스트 (실습실 작업)
+5. **[`docs/deploy_updates.md`](docs/deploy_updates.md)** — 운영 중 코드/Grafana/ML 변경 배포 워크플로우
+
+### 운영 / 보조 문서
+
+- [`docs/pc-provisioning.md`](docs/pc-provisioning.md) — API key 발급/회전 (provision_pcs.py)
+- [`docs/team-guide.md`](docs/team-guide.md) — Fork 워크플로우 (팀 협업)
+- [`docs/branch-protection.md`](docs/branch-protection.md) — main 보호 설정
+- [`docs/docker-dev.md`](docs/docker-dev.md) — 로컬 docker compose dev 환경
 - [`docs/grafana_cloud_dashboard_manual.md`](docs/grafana_cloud_dashboard_manual.md) — Grafana 패널 작업 매뉴얼
+
+### 검증 리포트 (FP 시리즈)
+
+- [`docs/fp_field_analysis_v0.6.md`](docs/fp_field_analysis_v0.6.md) — Pre-P0/P1 단계 (FP 65.9%)
+- [`docs/fp_field_analysis_post_p1.md`](docs/fp_field_analysis_post_p1.md) — P0+P1 적용 후 (1.6%)
+- [`docs/fp_field_analysis_post_p2.md`](docs/fp_field_analysis_post_p2.md) — P2 적용 후 (0%, 로컬)
+- [`docs/fp_field_analysis_ncp.md`](docs/fp_field_analysis_ncp.md) — NCP 운영 환경 (0.000%, 최신)
+
+### 알고리즘 / 백그라운드
+
 - [`docs/retrieval_augmented_timeseries_manual.md`](docs/retrieval_augmented_timeseries_manual.md) — retrieval evidence 레이어
 - [`docs/cryptojacking_detection_patterns.md`](docs/cryptojacking_detection_patterns.md) — 탐지 패턴 카탈로그
+- [`docs/mcp-setup.md`](docs/mcp-setup.md) — Claude Code MCP 서버 설정
