@@ -4,6 +4,12 @@
 메모이다. 범위는 최종평가용 Grafana 시각화, React panel plugin 우선순위, NCP 배포
 성능 전략, refresh 주기, 탄소중립 패널 기획까지 포함한다.
 
+> **현재 구현 상태 (2026-05 기준 — 본 메모 작성 후 변경분)**
+> - 운영 배포는 systemd 가 아니라 **Docker compose + NCP Cloud DB managed** 로 진행됨 → [`../guides/ncp_deployment.md`](../guides/ncp_deployment.md)
+> - 사용자 `user_idle_ms` 는 `client_core/collector/system_idle.py` (GetLastInputInfo) 로 **이미 수집 중**, ML 의 S1 패턴이 사용
+> - **Grafana 패널엔 아직 user_idle 시각화 없음** — 데이터는 `metrics_history.extra->'user_idle_ms'` 에 누적 중. 패널 추가는 향후 작업
+> - 탄소중립 / `idle_waste_kwh` 등은 본 문서의 기획안 (미구현). `estimated_power_w` 같은 derived metric 도 별도 작업 필요
+
 ## 1. 최종평가 기준 중요도
 
 RADA는 탐지 시스템이므로 백엔드/ML 완성도가 최우선이다. 다만 최종평가에 심미성이
