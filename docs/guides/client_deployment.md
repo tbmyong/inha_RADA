@@ -270,12 +270,16 @@ if %errorlevel% neq 0 (
     exit /b 1
 )
 
-set /p PC_NUM=Enter PC number (e.g. 01, 02, ... 40^): 
-set PC_ID=PC-%PC_NUM%
+REM SRC = directory of this .bat (trailing backslash). Quote everywhere so
+REM paths with spaces (OneDrive Desktop, "바탕 화면", 한글 폴더) work.
+set "SRC=%~dp0"
 
-set RAW_KEY=
-for /f "tokens=1,2 delims=," %%a in (%~dp0keys.csv) do (
-    if "%%a"=="!PC_ID!" set RAW_KEY=%%b
+set /p PC_NUM="Enter PC number (e.g. 01 / 02 / ... / 40): "
+set "PC_ID=PC-%PC_NUM%"
+
+set "RAW_KEY="
+for /f "usebackq tokens=1,2 delims=," %%a in ("%SRC%keys.csv") do (
+    if "%%a"=="!PC_ID!" set "RAW_KEY=%%b"
 )
 
 if "!RAW_KEY!"=="" (
@@ -289,7 +293,7 @@ echo [INFO] Installing !PC_ID! ...
 if not exist "C:\ProgramData\RADA" mkdir "C:\ProgramData\RADA"
 if not exist "%APPDATA%\rada" mkdir "%APPDATA%\rada"
 
-copy /Y "%~dp0rada_client.exe" "C:\ProgramData\RADA\" >nul
+copy /Y "%SRC%rada_client.exe" "C:\ProgramData\RADA\" >nul
 
 (
 echo mode: springboot
@@ -301,21 +305,25 @@ echo interval: 5
 schtasks /Create /TN "RADA Client" /TR "C:\ProgramData\RADA\rada_client.exe" /SC ONLOGON /RL HIGHEST /F >nul
 schtasks /Run /TN "RADA Client" >nul
 
-timeout /t 3 /nobreak >nul
+REM PyInstaller --onefile first-extract takes 5~10s. Wait longer than 3s.
+timeout /t 8 /nobreak >nul
 tasklist | findstr /i rada_client >nul && (
-    echo [OK] !PC_ID! installed and running in background.
+    echo [OK] !PC_ID! running in background.
 ) || (
-    echo [WARN] Process not found. Check manually.
+    echo [INFO] Task scheduled. exe may still be extracting ^(PyInstaller onefile^).
+    echo        Check in 30 sec: tasklist ^| findstr rada_client
 )
 
 echo.
 pause
 '@
 
-Set-Content -Encoding ASCII -Path $DEPLOY\install.bat -Value $bat
+Set-Content -Encoding ASCII -Path "$DEPLOY\install.bat" -Value $bat
 ```
 
 > ⚠ **install.bat 의 `spring_boot_url`** — 실제 NCP Public IP 로 바꿨는지 확인. 위 예시는 `223.130.154.165` 이지만 본인 NCP IP 가 다르면 수정 필요.
+>
+> ⚠ **OneDrive 데스크탑 / 한글 폴더 경로 함정** — 학생 PC 가 OneDrive 데스크탑 (`C:\Users\<user>\OneDrive\바탕 화면\`) 을 쓰면 폴더 경로에 공백이 들어가 cmd 가 잘못 파싱. 위 템플릿은 `set "SRC=%~dp0"` + `usebackq` + 따옴표 처리로 공백 / 한글 경로 모두 지원. 옛 버전 (3초 대기 + 따옴표 없음) 은 OneDrive 환경에서 "파일 ... 바탕을(를) 찾을 수 없습니다" 에러 발생함.
 
 ### 4-2. README.txt — 작업자용 운영 매뉴얼
 
@@ -484,24 +492,55 @@ del D:\RADA-deploy\keys.csv
 
 ---
 
-## 운영 명령 모음 (학생 PC)
+## 운영 명령 모음 (학생 PC — 관리자 PowerShell)
 
-```cmd
-REM 일시 중지 (관리자)
+### 일시 중지 / 시작 / 상태
+
+```powershell
+# 일시 중지
 schtasks /End /TN "RADA Client"
 
-REM 다시 시작
+# 다시 시작
 schtasks /Run /TN "RADA Client"
 
-REM 완전 제거
-schtasks /Delete /TN "RADA Client" /F
-del C:\ProgramData\RADA\rada_client.exe
-rmdir %APPDATA%\rada /S /Q
-
-REM 현재 상태
+# 상태
 schtasks /Query /TN "RADA Client" /V /FO LIST
+
+# 살아있는지
+Get-Process rada_client -EA SilentlyContinue
 tasklist | findstr rada_client
 ```
+
+### 완전 제거 — 실제 검증된 순서 (4단계)
+
+> ⚠ **함정**: `schtasks /Delete` 만 한다고 프로세스 / 파일이 같이 사라지지 않음.
+> exe 가 실행 중이면 파일 락이 걸려 `Remove-Item` 이 "액세스 거부" 에러로 실패함.
+> 반드시 **Task 정지 → 프로세스 kill → 파일 삭제** 순서.
+
+```powershell
+# 1. Task 정지 + 삭제
+schtasks /End    /TN "RADA Client" 2>$null
+schtasks /Delete /TN "RADA Client" /F 2>$null
+schtasks /Delete /TN "RADA Watchdog" /F 2>$null
+
+# 2. 실행 중인 프로세스 강제 종료 (파일 락 해제)
+taskkill /F /IM rada_client.exe 2>$null
+Start-Sleep 3
+Get-Process rada_client -EA SilentlyContinue
+# → 출력 없어야 다음 단계 진행
+
+# 3. 파일 + 설정 삭제
+Remove-Item -Recurse -Force C:\ProgramData\RADA  -EA SilentlyContinue
+Remove-Item -Recurse -Force "$env:APPDATA\rada" -EA SilentlyContinue
+
+# 4. 검증 (네 줄 모두 False / 비어있어야 함)
+Test-Path C:\ProgramData\RADA       # False
+Test-Path "$env:APPDATA\rada"       # False
+schtasks /Query | findstr /i rada   # (출력 없음)
+Get-Process rada_client -EA SilentlyContinue   # (출력 없음)
+```
+
+`Test-Path` 가 False 두 번 + findstr / Get-Process 출력 0 이면 완전 제거 성공.
 
 ## (선택) Watchdog — 5분 단위 자동 부활
 
@@ -531,6 +570,10 @@ schtasks /Create /TN "RADA Watchdog" `
 | PC 번호 자릿수 | Phase 5 | `01` (2자리). `1` 단독은 못 찾음 |
 | keys.csv Excel 손상 | Phase 3 | Excel 로 저장 절대 X. 메모장만 |
 | Maestro case B | Phase 5 | 본 매뉴얼 부적합. 별도 first-boot provisioning 설계 필요 |
+| **"파일 ... 바탕을(를) 찾을 수 없습니다"** | Phase 5 | OneDrive 데스크탑 경로 (`...OneDrive\바탕 화면\`) 공백 파싱 실패. 위 install.bat 템플릿이 `set "SRC=%~dp0"` + `usebackq` + 따옴표 처리로 해결. 옛 install.bat 쓰면 발생. |
+| **install.bat 의 [WARN] Process not found** | Phase 5 | 3초 대기가 PyInstaller `--onefile` 첫 압축해제 시간보다 짧아서. **대부분 정상** — 30초 후 `tasklist \| findstr rada_client` 또는 NCP DB 의 age 5~10초 확인하면 살아있음. 최신 install.bat 은 8초 대기 + 더 명확한 [INFO] 메시지. |
+| **`Remove-Item exe` 액세스 거부** | 운영 | 프로세스 실행 중이라 파일 락. 반드시 `taskkill /F` 먼저 → `Start-Sleep 3` → `Remove-Item`. 위 "완전 제거" 4단계 참조. |
+| **Task 만 삭제했는데 프로세스 / 파일 남음** | 운영 | `schtasks /Delete` 는 Task 등록만 지움. 프로세스 / 파일은 별개로 정리해야. 위 "완전 제거" 4단계 참조. |
 
 ---
 
