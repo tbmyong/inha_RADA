@@ -1,779 +1,1091 @@
 {
-    "uid": "rada-pc-detail",
-    "title": "RADA \u2014 PC Detail",
-    "tags": [
-        "RADA",
-        "SOC",
-        "pc-detail"
-    ],
-    "timezone": "browser",
-    "schemaVersion": 40,
-    "version": 1,
-    "editable": true,
-    "graphTooltip": 1,
-    "refresh": "5s",
-    "time": {
-        "from": "now-1h",
-        "to": "now"
-    },
-    "timepicker": {
-        "refresh_intervals": [
-            "5s",
-            "10s",
-            "30s",
-            "1m",
-            "5m"
-        ]
-    },
-    "templating": {
-        "list": [
-            {
-                "name": "pc_id",
-                "label": "PC",
-                "type": "query",
-                "datasource": {
-                    "type": "postgres",
-                    "uid": "rada_pg"
-                },
-                "query": "SELECT pc_id FROM pc_info WHERE is_active = true AND pc_id LIKE 'PC-%' ORDER BY pc_id",
-                "refresh": 2,
-                "includeAll": false,
-                "multi": false
-            }
-        ]
-    },
-    "annotations": {
-        "list": []
-    },
-    "links": [
-        {
-            "title": "Overview",
-            "type": "link",
-            "url": "/d/rada-main/lab-01-soc-overview",
-            "icon": "external link",
-            "includeVars": true,
-            "keepTime": true,
-            "targetBlank": false
-        },
-        {
-            "title": "AI Judgment",
-            "type": "link",
-            "url": "/d/rada-ai-judgment/ai-judgment",
-            "icon": "external link",
-            "includeVars": true,
-            "keepTime": true,
-            "targetBlank": false
-        }
-    ],
-    "panels": [
-        {
-            "id": 10,
-            "type": "text",
-            "title": "",
-            "gridPos": {
-                "x": 0,
-                "y": 0,
-                "w": 24,
-                "h": 3
-            },
-            "options": {
-                "mode": "html",
-                "content": "\n<div style='height:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:linear-gradient(90deg,#080D18,#111827);border:1px solid #1F2937;border-radius:10px;color:#E5E7EB;'>\n  <div><div style='font-size:21px;font-weight:800;'>PC Detail \u00b7 ${pc_id}</div><div style='font-size:12px;color:#94A3B8;margin-top:4px;'>CPU \u00b7 MEM \u00b7 GPU \u00b7 VRAM \ud575\uc2ec \uc9c0\ud45c\uc640 Network \ubcf4\uc870 \uc9c0\ud45c, AI \ud310\ub2e8 \uadfc\uac70 \ubd84\uc11d</div></div>\n  <div style='font-size:12px;color:#94A3B8;'>Overview \u2192 select PC \u2192 inspect core signals</div>\n</div>\n"
-            }
-        },
-        {
-            "id": 20,
-            "type": "stat",
-            "title": "\ud604\uc7ac Severity",
-            "datasource": {
-                "type": "postgres",
-                "uid": "rada_pg"
-            },
-            "gridPos": {
-                "x": 0,
-                "y": 3,
-                "w": 6,
-                "h": 4
-            },
-            "targets": [
-                {
-                    "refId": "A",
-                    "datasource": {
-                        "type": "postgres",
-                        "uid": "rada_pg"
-                    },
-                    "format": "table",
-                    "rawSql": "SELECT COALESCE((SELECT severity FROM anomaly_history WHERE pc_id='$pc_id' ORDER BY detected_at DESC LIMIT 1),'NORMAL') AS value"
-                }
-            ],
-            "options": {
-                "reduceOptions": {
-                    "calcs": [
-                        "lastNotNull"
-                    ],
-                    "fields": "",
-                    "values": false
-                },
-                "orientation": "auto",
-                "textMode": "value_and_name",
-                "colorMode": "background",
-                "graphMode": "none",
-                "justifyMode": "center",
-                "text": {
-                    "valueSize": 34
-                }
-            },
-            "fieldConfig": {
-                "defaults": {
-                    "color": {
-                        "mode": "fixed",
-                        "fixedColor": "#1F2937"
-                    },
-                    "unit": "none",
-                    "displayName": "SEVERITY"
-                },
-                "overrides": []
-            }
-        },
-        {
-            "id": 21,
-            "type": "gauge",
-            "title": "\ucd5c\uadfc Risk Score",
-            "datasource": {
-                "type": "postgres",
-                "uid": "rada_pg"
-            },
-            "gridPos": {
-                "x": 6,
-                "y": 3,
-                "w": 6,
-                "h": 4
-            },
-            "targets": [
-                {
-                    "refId": "A",
-                    "datasource": {
-                        "type": "postgres",
-                        "uid": "rada_pg"
-                    },
-                    "format": "table",
-                    "rawSql": "SELECT COALESCE((SELECT COALESCE((scores->'score_breakdown'->>'final')::float, (scores->>'final')::float, (scores->>'total')::float, 0) FROM anomaly_history WHERE pc_id='$pc_id' ORDER BY detected_at DESC LIMIT 1),0) AS value"
-                }
-            ],
-            "options": {
-                "reduceOptions": {
-                    "calcs": [
-                        "lastNotNull"
-                    ],
-                    "fields": "",
-                    "values": false
-                },
-                "orientation": "auto",
-                "showThresholdLabels": false,
-                "showThresholdMarkers": true
-            },
-            "fieldConfig": {
-                "defaults": {
-                    "unit": "none",
-                    "min": 0,
-                    "max": 100,
-                    "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                            {
-                                "color": "#22C55E",
-                                "value": null
-                            },
-                            {
-                                "color": "#FACC15",
-                                "value": 50
-                            },
-                            {
-                                "color": "#EF4444",
-                                "value": 80
-                            }
-                        ]
-                    },
-                    "color": {
-                        "mode": "thresholds"
-                    }
-                },
-                "overrides": []
-            }
-        },
-        {
-            "id": 22,
-            "type": "stat",
-            "title": "\ucd5c\uadfc AI \ud310\ub2e8",
-            "datasource": {
-                "type": "postgres",
-                "uid": "rada_pg"
-            },
-            "gridPos": {
-                "x": 12,
-                "y": 3,
-                "w": 6,
-                "h": 4
-            },
-            "targets": [
-                {
-                    "refId": "A",
-                    "datasource": {
-                        "type": "postgres",
-                        "uid": "rada_pg"
-                    },
-                    "format": "table",
-                    "rawSql": "SELECT COALESCE((SELECT COALESCE(judgment, verdict, details->>'judgment','UNKNOWN') FROM ai_judgment_history WHERE pc_id='$pc_id' ORDER BY judged_at DESC LIMIT 1),'NO DATA') AS value"
-                }
-            ],
-            "options": {
-                "reduceOptions": {
-                    "calcs": [
-                        "lastNotNull"
-                    ],
-                    "fields": "",
-                    "values": false
-                },
-                "orientation": "auto",
-                "textMode": "value_and_name",
-                "colorMode": "background",
-                "graphMode": "none",
-                "justifyMode": "center",
-                "text": {
-                    "valueSize": 30
-                }
-            },
-            "fieldConfig": {
-                "defaults": {
-                    "color": {
-                        "mode": "fixed",
-                        "fixedColor": "#7C3AED"
-                    },
-                    "unit": "none",
-                    "displayName": "AI"
-                },
-                "overrides": []
-            }
-        },
-        {
-            "id": 23,
-            "type": "stat",
-            "title": "\ub9c8\uc9c0\ub9c9 \uc218\uc9d1",
-            "datasource": {
-                "type": "postgres",
-                "uid": "rada_pg"
-            },
-            "gridPos": {
-                "x": 18,
-                "y": 3,
-                "w": 6,
-                "h": 4
-            },
-            "targets": [
-                {
-                    "refId": "A",
-                    "datasource": {
-                        "type": "postgres",
-                        "uid": "rada_pg"
-                    },
-                    "format": "table",
-                    "rawSql": "SELECT COALESCE(to_char(MAX(collected_at), 'MM-DD HH24:MI:SS'), 'NO DATA') AS value FROM metrics_history WHERE pc_id='$pc_id'"
-                }
-            ],
-            "options": {
-                "reduceOptions": {
-                    "calcs": [
-                        "lastNotNull"
-                    ],
-                    "fields": "",
-                    "values": false
-                },
-                "orientation": "auto",
-                "textMode": "value_and_name",
-                "colorMode": "background",
-                "graphMode": "none",
-                "justifyMode": "center",
-                "text": {
-                    "valueSize": 28
-                }
-            },
-            "fieldConfig": {
-                "defaults": {
-                    "color": {
-                        "mode": "fixed",
-                        "fixedColor": "#334155"
-                    },
-                    "unit": "none",
-                    "displayName": "LAST SEEN"
-                },
-                "overrides": []
-            }
-        },
-        {
-            "id": 30,
-            "type": "timeseries",
-            "title": "CPU / MEM / GPU \uc0ac\uc6a9\ub960",
-            "datasource": {
-                "type": "postgres",
-                "uid": "rada_pg"
-            },
-            "gridPos": {
-                "x": 0,
-                "y": 7,
-                "w": 16,
-                "h": 8
-            },
-            "targets": [
-                {
-                    "refId": "A",
-                    "datasource": {
-                        "type": "postgres",
-                        "uid": "rada_pg"
-                    },
-                    "format": "table",
-                    "rawSql": "SELECT collected_at AS time, cpu_percent AS \"CPU\", mem_percent AS \"MEM\", gpu_percent AS \"GPU\" FROM metrics_history WHERE pc_id='$pc_id' AND $__timeFilter(collected_at) ORDER BY collected_at"
-                }
-            ],
-            "options": {
-                "legend": {
-                    "displayMode": "table",
-                    "placement": "bottom",
-                    "calcs": [
-                        "lastNotNull",
-                        "max"
-                    ]
-                },
-                "tooltip": {
-                    "mode": "multi",
-                    "sort": "desc"
-                }
-            },
-            "fieldConfig": {
-                "defaults": {
-                    "custom": {
-                        "drawStyle": "line",
-                        "lineInterpolation": "smooth",
-                        "lineWidth": 2,
-                        "fillOpacity": 12,
-                        "showPoints": "never",
-                        "spanNulls": true
-                    },
-                    "color": {
-                        "mode": "palette-classic"
-                    },
-                    "unit": "percent"
-                },
-                "overrides": []
-            }
-        },
-        {
-            "id": 31,
-            "type": "timeseries",
-            "title": "VRAM \uc0ac\uc6a9\ub7c9",
-            "datasource": {
-                "type": "postgres",
-                "uid": "rada_pg"
-            },
-            "gridPos": {
-                "x": 16,
-                "y": 7,
-                "w": 8,
-                "h": 8
-            },
-            "targets": [
-                {
-                    "refId": "A",
-                    "datasource": {
-                        "type": "postgres",
-                        "uid": "rada_pg"
-                    },
-                    "format": "table",
-                    "rawSql": "SELECT collected_at AS time, vram_mb AS \"VRAM(MB)\" FROM metrics_history WHERE pc_id='$pc_id' AND $__timeFilter(collected_at) ORDER BY collected_at"
-                }
-            ],
-            "options": {
-                "legend": {
-                    "displayMode": "table",
-                    "placement": "bottom",
-                    "calcs": [
-                        "lastNotNull",
-                        "max"
-                    ]
-                },
-                "tooltip": {
-                    "mode": "multi",
-                    "sort": "desc"
-                }
-            },
-            "fieldConfig": {
-                "defaults": {
-                    "custom": {
-                        "drawStyle": "line",
-                        "lineInterpolation": "smooth",
-                        "lineWidth": 2,
-                        "fillOpacity": 12,
-                        "showPoints": "never",
-                        "spanNulls": true
-                    },
-                    "color": {
-                        "mode": "palette-classic"
-                    }
-                },
-                "overrides": []
-            }
-        },
-        {
-            "id": 32,
-            "type": "timeseries",
-            "title": "Network In/Out",
-            "datasource": {
-                "type": "postgres",
-                "uid": "rada_pg"
-            },
-            "gridPos": {
-                "x": 0,
-                "y": 15,
-                "w": 12,
-                "h": 8
-            },
-            "targets": [
-                {
-                    "refId": "A",
-                    "datasource": {
-                        "type": "postgres",
-                        "uid": "rada_pg"
-                    },
-                    "format": "table",
-                    "rawSql": "SELECT collected_at AS time, inbound_mb AS \"Inbound(MB)\", outbound_mb AS \"Outbound(MB)\" FROM metrics_history WHERE pc_id='$pc_id' AND $__timeFilter(collected_at) ORDER BY collected_at"
-                }
-            ],
-            "options": {
-                "legend": {
-                    "displayMode": "table",
-                    "placement": "bottom",
-                    "calcs": [
-                        "lastNotNull",
-                        "max"
-                    ]
-                },
-                "tooltip": {
-                    "mode": "multi",
-                    "sort": "desc"
-                }
-            },
-            "fieldConfig": {
-                "defaults": {
-                    "custom": {
-                        "drawStyle": "line",
-                        "lineInterpolation": "smooth",
-                        "lineWidth": 2,
-                        "fillOpacity": 12,
-                        "showPoints": "never",
-                        "spanNulls": true
-                    },
-                    "color": {
-                        "mode": "palette-classic"
-                    }
-                },
-                "overrides": []
-            }
-        },
-        {
-            "id": 33,
-            "type": "table",
-            "title": "\ucd5c\uadfc Top Process",
-            "datasource": {
-                "type": "postgres",
-                "uid": "rada_pg"
-            },
-            "gridPos": {
-                "x": 12,
-                "y": 15,
-                "w": 12,
-                "h": 8
-            },
-            "targets": [
-                {
-                    "refId": "A",
-                    "datasource": {
-                        "type": "postgres",
-                        "uid": "rada_pg"
-                    },
-                    "format": "table",
-                    "rawSql": "WITH latest AS (\n  SELECT extra\n  FROM metrics_history\n  WHERE pc_id='$pc_id' AND extra ? 'top_processes'\n  ORDER BY collected_at DESC\n  LIMIT 1\n)\nSELECT\n  (proc->>'name')::text AS process,\n  (proc->>'cpu_percent')::float AS cpu,\n  (proc->>'mem_percent')::float AS mem\nFROM latest, LATERAL jsonb_array_elements(latest.extra->'top_processes') AS proc\nORDER BY cpu DESC NULLS LAST\nLIMIT 10"
-                }
-            ],
-            "options": {
-                "showHeader": true,
-                "cellHeight": "sm",
-                "footer": {
-                    "show": false,
-                    "reducer": [
-                        "sum"
-                    ],
-                    "countRows": false,
-                    "fields": ""
-                }
-            },
-            "fieldConfig": {
-                "defaults": {
-                    "custom": {
-                        "align": "auto",
-                        "cellOptions": {
-                            "type": "auto"
-                        },
-                        "inspect": false
-                    },
-                    "mappings": [],
-                    "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                            {
-                                "color": "#22C55E",
-                                "value": null
-                            },
-                            {
-                                "color": "#FACC15",
-                                "value": 2
-                            },
-                            {
-                                "color": "#EF4444",
-                                "value": 3
-                            }
-                        ]
-                    },
-                    "color": {
-                        "mode": "thresholds"
-                    }
-                },
-                "overrides": []
-            }
-        },
-        {
-            "id": 40,
-            "type": "table",
-            "title": "\uc774\uc0c1 \ud0d0\uc9c0 \uc774\ub825",
-            "datasource": {
-                "type": "postgres",
-                "uid": "rada_pg"
-            },
-            "gridPos": {
-                "x": 0,
-                "y": 23,
-                "w": 12,
-                "h": 8
-            },
-            "targets": [
-                {
-                    "refId": "A",
-                    "datasource": {
-                        "type": "postgres",
-                        "uid": "rada_pg"
-                    },
-                    "format": "table",
-                    "rawSql": "SELECT detected_at, severity, anomaly_type, COALESCE((scores->'score_breakdown'->>'final')::float, (scores->>'final')::float, (scores->>'total')::float, 0) AS risk_score, message FROM anomaly_history WHERE pc_id='$pc_id' AND $__timeFilter(detected_at) ORDER BY detected_at DESC LIMIT 30"
-                }
-            ],
-            "options": {
-                "showHeader": true,
-                "cellHeight": "sm",
-                "footer": {
-                    "show": false,
-                    "reducer": [
-                        "sum"
-                    ],
-                    "countRows": false,
-                    "fields": ""
-                }
-            },
-            "fieldConfig": {
-                "defaults": {
-                    "custom": {
-                        "align": "auto",
-                        "cellOptions": {
-                            "type": "auto"
-                        },
-                        "inspect": false
-                    },
-                    "mappings": [],
-                    "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                            {
-                                "color": "#22C55E",
-                                "value": null
-                            },
-                            {
-                                "color": "#FACC15",
-                                "value": 2
-                            },
-                            {
-                                "color": "#EF4444",
-                                "value": 3
-                            }
-                        ]
-                    },
-                    "color": {
-                        "mode": "thresholds"
-                    }
-                },
-                "overrides": []
-            }
-        },
-        {
-            "id": 41,
-            "type": "table",
-            "title": "AI \ud310\ub2e8 \ub0b4\uc5ed",
-            "datasource": {
-                "type": "postgres",
-                "uid": "rada_pg"
-            },
-            "gridPos": {
-                "x": 12,
-                "y": 23,
-                "w": 12,
-                "h": 8
-            },
-            "targets": [
-                {
-                    "refId": "A",
-                    "datasource": {
-                        "type": "postgres",
-                        "uid": "rada_pg"
-                    },
-                    "format": "table",
-                    "rawSql": "SELECT judged_at, COALESCE(judgment, verdict, details->>'judgment','UNKNOWN') AS judgment, severity, confidence, reason, action, is_mock FROM ai_judgment_history WHERE pc_id='$pc_id' AND $__timeFilter(judged_at) ORDER BY judged_at DESC LIMIT 30"
-                }
-            ],
-            "options": {
-                "showHeader": true,
-                "cellHeight": "sm",
-                "footer": {
-                    "show": false,
-                    "reducer": [
-                        "sum"
-                    ],
-                    "countRows": false,
-                    "fields": ""
-                }
-            },
-            "fieldConfig": {
-                "defaults": {
-                    "custom": {
-                        "align": "auto",
-                        "cellOptions": {
-                            "type": "auto"
-                        },
-                        "inspect": false
-                    },
-                    "mappings": [],
-                    "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                            {
-                                "color": "#22C55E",
-                                "value": null
-                            },
-                            {
-                                "color": "#FACC15",
-                                "value": 2
-                            },
-                            {
-                                "color": "#EF4444",
-                                "value": 3
-                            }
-                        ]
-                    },
-                    "color": {
-                        "mode": "thresholds"
-                    }
-                },
-                "overrides": []
-            }
-        },
-        {
-            "id": 50,
-            "type": "bargauge",
-            "title": "Score Breakdown \ucd5c\uadfc 1\uac74",
-            "datasource": {
-                "type": "postgres",
-                "uid": "rada_pg"
-            },
-            "gridPos": {
-                "x": 0,
-                "y": 31,
-                "w": 24,
-                "h": 6
-            },
-            "targets": [
-                {
-                    "refId": "A",
-                    "datasource": {
-                        "type": "postgres",
-                        "uid": "rada_pg"
-                    },
-                    "format": "table",
-                    "rawSql": "WITH latest AS (SELECT scores FROM anomaly_history WHERE pc_id='$pc_id' ORDER BY detected_at DESC LIMIT 1)\nSELECT 'resource' AS pc_id, COALESCE((scores->'score_breakdown'->>'resource')::float, 0) AS v FROM latest\nUNION ALL SELECT 'network', COALESCE((scores->'score_breakdown'->>'network')::float, 0) FROM latest\nUNION ALL SELECT 'process', COALESCE((scores->'score_breakdown'->>'process')::float, 0) FROM latest\nUNION ALL SELECT 'final', COALESCE((scores->'score_breakdown'->>'final')::float, (scores->>'final')::float, (scores->>'total')::float, 0) FROM latest"
-                }
-            ],
-            "description": "\ucd5c\uadfc \uc774\uc0c1 \ud0d0\uc9c0 1\uac74\uc758 score_breakdown",
-            "options": {
-                "orientation": "horizontal",
-                "displayMode": "gradient",
-                "showUnfilled": true,
-                "reduceOptions": {
-                    "values": true,
-                    "calcs": [
-                        "lastNotNull"
-                    ],
-                    "fields": "/^v$/"
-                }
-            },
-            "fieldConfig": {
-                "defaults": {
-                    "unit": "none",
-                    "min": 0,
-                    "max": 100,
-                    "thresholds": {
-                        "mode": "absolute",
-                        "steps": [
-                            {
-                                "color": "#22C55E",
-                                "value": null
-                            },
-                            {
-                                "color": "#FACC15",
-                                "value": 70
-                            },
-                            {
-                                "color": "#EF4444",
-                                "value": 90
-                            }
-                        ]
-                    },
-                    "color": {
-                        "mode": "thresholds"
-                    },
-                    "custom": {
-                        "lineWidth": 1,
-                        "fillOpacity": 80
-                    }
-                },
-                "overrides": [
-                    {
-                        "matcher": {
-                            "id": "byName",
-                            "options": "v"
-                        },
-                        "properties": [
-                            {
-                                "id": "displayName",
-                                "value": "${__data.fields.pc_id}"
-                            }
-                        ]
-                    }
-                ]
-            }
-        }
+  "uid": "rada-pc-detail",
+  "title": "RADA — PC Detail",
+  "tags": [
+    "RADA",
+    "SOC",
+    "pc-detail"
+  ],
+  "timezone": "browser",
+  "schemaVersion": 40,
+  "version": 2,
+  "editable": true,
+  "graphTooltip": 1,
+  "refresh": "5s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "5s",
+      "10s",
+      "30s",
+      "1m",
+      "5m"
     ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "pc_id",
+        "label": "PC",
+        "type": "query",
+        "datasource": {
+          "type": "postgres",
+          "uid": "rada_pg"
+        },
+        "query": "SELECT pc_id FROM pc_info WHERE is_active = true AND pc_id LIKE 'PC-%' ORDER BY pc_id",
+        "refresh": 2,
+        "includeAll": false,
+        "multi": false
+      }
+    ]
+  },
+  "annotations": {
+    "list": []
+  },
+  "links": [
+    {
+      "title": "Overview",
+      "type": "link",
+      "url": "/d/rada-main/lab-01-soc-overview",
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false
+    },
+    {
+      "title": "AI Judgment",
+      "type": "link",
+      "url": "/d/rada-ai-judgment/ai-judgment",
+      "icon": "external link",
+      "includeVars": true,
+      "keepTime": true,
+      "targetBlank": false
+    }
+  ],
+  "panels": [
+    {
+      "id": 10,
+      "type": "text",
+      "title": "",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 3
+      },
+      "options": {
+        "mode": "html",
+        "content": "\n<div style='height:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 16px;background:linear-gradient(90deg,#080D18,#111827);border:1px solid #1F2937;border-radius:10px;color:#E5E7EB;'>\n  <div><div style='font-size:21px;font-weight:800;'>PC Detail · ${pc_id}</div><div style='font-size:12px;color:#94A3B8;margin-top:4px;'>CPU · MEM · GPU · VRAM 핵심 지표, Network 보조 지표, AI 판단 근거와 권장 조치 가이드</div></div>\n  <div style='font-size:12px;color:#94A3B8;'>Overview → select PC → inspect core signals</div>\n</div>\n"
+      }
+    },
+    {
+      "id": 20,
+      "type": "stat",
+      "title": "현재 Severity",
+      "datasource": {
+        "type": "postgres",
+        "uid": "rada_pg"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 3,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "rada_pg"
+          },
+          "format": "table",
+          "rawSql": "SELECT COALESCE((SELECT severity FROM anomaly_history WHERE pc_id='$pc_id' ORDER BY detected_at DESC LIMIT 1),'NORMAL') AS value"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "value_and_name",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "text": {
+          "valueSize": 34
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#1F2937"
+          },
+          "unit": "none",
+          "displayName": "SEVERITY"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 21,
+      "type": "gauge",
+      "title": "최근 Risk Score",
+      "datasource": {
+        "type": "postgres",
+        "uid": "rada_pg"
+      },
+      "gridPos": {
+        "x": 6,
+        "y": 3,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "rada_pg"
+          },
+          "format": "table",
+          "rawSql": "SELECT COALESCE((SELECT COALESCE((scores->'score_breakdown'->>'final')::float, (scores->>'final')::float, (scores->>'total')::float, 0) FROM anomaly_history WHERE pc_id='$pc_id' ORDER BY detected_at DESC LIMIT 1),0) AS value"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "showThresholdLabels": false,
+        "showThresholdMarkers": true
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22C55E",
+                "value": null
+              },
+              {
+                "color": "#FACC15",
+                "value": 50
+              },
+              {
+                "color": "#EF4444",
+                "value": 80
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 22,
+      "type": "stat",
+      "title": "최근 AI 판단",
+      "datasource": {
+        "type": "postgres",
+        "uid": "rada_pg"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 3,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "rada_pg"
+          },
+          "format": "table",
+          "rawSql": "SELECT COALESCE((SELECT COALESCE(judgment, verdict, details->>'judgment','UNKNOWN') FROM ai_judgment_history WHERE pc_id='$pc_id' ORDER BY judged_at DESC LIMIT 1),'NO DATA') AS value"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "value_and_name",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "text": {
+          "valueSize": 30
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#7C3AED"
+          },
+          "unit": "none",
+          "displayName": "AI"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 23,
+      "type": "stat",
+      "title": "마지막 수집",
+      "datasource": {
+        "type": "postgres",
+        "uid": "rada_pg"
+      },
+      "gridPos": {
+        "x": 18,
+        "y": 3,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "rada_pg"
+          },
+          "format": "table",
+          "rawSql": "SELECT COALESCE(to_char(MAX(collected_at), 'MM-DD HH24:MI:SS'), 'NO DATA') AS value FROM metrics_history WHERE pc_id='$pc_id'"
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "orientation": "auto",
+        "textMode": "value_and_name",
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "text": {
+          "valueSize": 28
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "#334155"
+          },
+          "unit": "none",
+          "displayName": "LAST SEEN"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 60,
+      "type": "table",
+      "title": "🛠 권장 조치 가이드",
+      "datasource": {
+        "type": "postgres",
+        "uid": "rada_pg"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 7,
+        "w": 24,
+        "h": 6
+      },
+      "description": "선택 PC의 최신 AI 판단과 severity를 기준으로 rule-based 권장 조치를 제시합니다.",
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "rada_pg"
+          },
+          "format": "table",
+          "rawSql": "WITH ctx AS (\n  SELECT\n    UPPER(COALESCE(ai.judgment, ai.verdict, ai.details->>'judgment', 'UNKNOWN')) AS judgment,\n    UPPER(COALESCE(ai.severity, an.severity, 'NORMAL')) AS severity,\n    COALESCE(ai.reason, ai.details->>'reason', an.anomaly_type, '최근 판단 근거 없음') AS reason,\n    COALESCE(an.anomaly_type, '-') AS anomaly_type,\n    COALESCE(m.cpu_percent, 0) AS cpu,\n    COALESCE(m.mem_percent, 0) AS mem,\n    COALESCE(m.gpu_percent, 0) AS gpu,\n    COALESCE(m.vram_mb, 0) AS vram,\n    COALESCE(m.outbound_mb, 0) AS outbound\n  FROM (SELECT '$pc_id'::text AS pc_id) b\n  LEFT JOIN LATERAL (\n    SELECT severity, anomaly_type, scores, detected_at\n    FROM anomaly_history\n    WHERE pc_id = b.pc_id\n    ORDER BY detected_at DESC\n    LIMIT 1\n  ) an ON true\n  LEFT JOIN LATERAL (\n    SELECT judgment, verdict, severity, reason, details, judged_at\n    FROM ai_judgment_history\n    WHERE pc_id = b.pc_id\n    ORDER BY judged_at DESC\n    LIMIT 1\n  ) ai ON true\n  LEFT JOIN LATERAL (\n    SELECT cpu_percent, mem_percent, gpu_percent, vram_mb, outbound_mb, collected_at\n    FROM metrics_history\n    WHERE pc_id = b.pc_id\n    ORDER BY collected_at DESC\n    LIMIT 1\n  ) m ON true\n)\nSELECT 1 AS no, '현재 판단' AS item, judgment AS value FROM ctx\nUNION ALL\nSELECT 2 AS no, 'Severity' AS item, severity AS value FROM ctx\nUNION ALL\nSELECT 3 AS no, '의심 근거' AS item,\n  CASE\n    WHEN judgment = 'MINING' THEN 'GPU/VRAM 사용량, Top Process, 외부 연결 증가 여부를 우선 확인'\n    WHEN judgment = 'HEAVY_LOAD' THEN 'CPU/MEM/GPU 고부하 process와 정상 작업 여부를 확인'\n    WHEN judgment = 'HW_ERROR' THEN '온도, fan, 장치 인식, driver 상태를 확인'\n    WHEN judgment = 'NORMAL' THEN '현재 AI 판단은 정상. 주기적 모니터링 유지'\n    ELSE 'AI 판단 결과 또는 agent/metrics 수집 상태 확인'\n  END || ' · Reason: ' || reason AS value\nFROM ctx\nUNION ALL\nSELECT 4 AS no, '권장 조치' AS item,\n  CASE\n    WHEN judgment = 'MINING' AND severity = 'HIGH' THEN '의심 process 즉시 확인/종료, 외부 연결 점검, 필요 시 네트워크 임시 분리'\n    WHEN judgment = 'MINING' THEN 'GPU 점유 process와 외부 연결을 확인하고, 의심 process 종료 여부 검토'\n    WHEN judgment = 'HEAVY_LOAD' AND severity = 'HIGH' THEN '고부하 process를 즉시 확인하고 불필요한 작업 종료 또는 작업 예약/자원 제한 검토'\n    WHEN judgment = 'HEAVY_LOAD' THEN '정상 작업 여부를 확인하고 불필요한 고부하 process 정리'\n    WHEN judgment = 'HW_ERROR' THEN 'GPU 온도/fan/장치 인식/driver 상태 확인 후 재부팅 및 재발 여부 점검'\n    WHEN judgment = 'NORMAL' THEN '별도 조치 없음'\n    ELSE '최근 데이터 수집 시각과 agent 동작 여부를 먼저 확인'\n  END AS value\nFROM ctx\nUNION ALL\nSELECT 5 AS no, '조치 후 확인' AS item,\n  CASE\n    WHEN judgment = 'MINING' THEN 'Risk Score, GPU 사용률, VRAM 사용량, Network Out 감소 여부 확인'\n    WHEN judgment = 'HEAVY_LOAD' THEN 'CPU/MEM/GPU 사용률과 Top Process 변화 확인'\n    WHEN judgment = 'HW_ERROR' THEN '재부팅 후 동일 anomaly 반복 여부와 장치 상태 확인'\n    WHEN judgment = 'NORMAL' THEN '정상 상태 유지 여부 모니터링'\n    ELSE 'AI 판단 로그 생성 여부와 metrics 수집 정상화 여부 확인'\n  END AS value\nFROM ctx\nORDER BY no"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22C55E",
+                "value": null
+              },
+              {
+                "color": "#FACC15",
+                "value": 1
+              },
+              {
+                "color": "#EF4444",
+                "value": 2
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "no"
+            },
+            "properties": [
+              {
+                "id": "custom.hidden",
+                "value": true
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "item"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 160
+              }
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": 30,
+      "type": "timeseries",
+      "title": "CPU / MEM / GPU 사용률",
+      "datasource": {
+        "type": "postgres",
+        "uid": "rada_pg"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 13,
+        "w": 16,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "rada_pg"
+          },
+          "format": "table",
+          "rawSql": "SELECT collected_at AS time, cpu_percent AS \"CPU\", mem_percent AS \"MEM\", gpu_percent AS \"GPU\" FROM metrics_history WHERE pc_id='$pc_id' AND $__timeFilter(collected_at) ORDER BY collected_at"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 31,
+      "type": "timeseries",
+      "title": "VRAM 사용량",
+      "datasource": {
+        "type": "postgres",
+        "uid": "rada_pg"
+      },
+      "gridPos": {
+        "x": 16,
+        "y": 13,
+        "w": 8,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "rada_pg"
+          },
+          "format": "table",
+          "rawSql": "SELECT collected_at AS time, vram_mb AS \"VRAM(MB)\" FROM metrics_history WHERE pc_id='$pc_id' AND $__timeFilter(collected_at) ORDER BY collected_at"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 32,
+      "type": "timeseries",
+      "title": "Network In/Out",
+      "datasource": {
+        "type": "postgres",
+        "uid": "rada_pg"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 21,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "rada_pg"
+          },
+          "format": "table",
+          "rawSql": "SELECT collected_at AS time, inbound_mb AS \"Inbound(MB)\", outbound_mb AS \"Outbound(MB)\" FROM metrics_history WHERE pc_id='$pc_id' AND $__timeFilter(collected_at) ORDER BY collected_at"
+        }
+      ],
+      "options": {
+        "legend": {
+          "displayMode": "table",
+          "placement": "bottom",
+          "calcs": [
+            "lastNotNull",
+            "max"
+          ]
+        },
+        "tooltip": {
+          "mode": "multi",
+          "sort": "desc"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 12,
+            "showPoints": "never",
+            "spanNulls": true
+          },
+          "color": {
+            "mode": "palette-classic"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 33,
+      "type": "table",
+      "title": "최근 Top Process",
+      "datasource": {
+        "type": "postgres",
+        "uid": "rada_pg"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 21,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "rada_pg"
+          },
+          "format": "table",
+          "rawSql": "WITH latest AS (\n  SELECT extra\n  FROM metrics_history\n  WHERE pc_id='$pc_id' AND extra ? 'top_processes'\n  ORDER BY collected_at DESC\n  LIMIT 1\n)\nSELECT\n  (proc->>'name')::text AS process,\n  (proc->>'cpu_percent')::float AS cpu,\n  (proc->>'mem_percent')::float AS mem\nFROM latest, LATERAL jsonb_array_elements(latest.extra->'top_processes') AS proc\nORDER BY cpu DESC NULLS LAST\nLIMIT 10"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22C55E",
+                "value": null
+              },
+              {
+                "color": "#FACC15",
+                "value": 2
+              },
+              {
+                "color": "#EF4444",
+                "value": 3
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 40,
+      "type": "table",
+      "title": "이상 탐지 이력",
+      "datasource": {
+        "type": "postgres",
+        "uid": "rada_pg"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 29,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "rada_pg"
+          },
+          "format": "table",
+          "rawSql": "SELECT detected_at, severity, anomaly_type, COALESCE((scores->'score_breakdown'->>'final')::float, (scores->>'final')::float, (scores->>'total')::float, 0) AS risk_score, message FROM anomaly_history WHERE pc_id='$pc_id' AND $__timeFilter(detected_at) ORDER BY detected_at DESC LIMIT 30"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22C55E",
+                "value": null
+              },
+              {
+                "color": "#FACC15",
+                "value": 2
+              },
+              {
+                "color": "#EF4444",
+                "value": 3
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 41,
+      "type": "table",
+      "title": "AI 판단 내역",
+      "datasource": {
+        "type": "postgres",
+        "uid": "rada_pg"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 29,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "rada_pg"
+          },
+          "format": "table",
+          "rawSql": "SELECT judged_at, COALESCE(judgment, verdict, details->>'judgment','UNKNOWN') AS judgment, severity, confidence, reason, action, is_mock FROM ai_judgment_history WHERE pc_id='$pc_id' AND $__timeFilter(judged_at) ORDER BY judged_at DESC LIMIT 30"
+        }
+      ],
+      "options": {
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false,
+          "reducer": [
+            "sum"
+          ],
+          "countRows": false,
+          "fields": ""
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22C55E",
+                "value": null
+              },
+              {
+                "color": "#FACC15",
+                "value": 2
+              },
+              {
+                "color": "#EF4444",
+                "value": 3
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 61,
+      "type": "table",
+      "title": "📊 정상 baseline 대비 편차",
+      "datasource": {
+        "type": "postgres",
+        "uid": "rada_pg"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 37,
+        "w": 12,
+        "h": 7
+      },
+      "options": {
+        "showHeader": true,
+        "footer": {
+          "show": false
+        },
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "left",
+            "filterable": false,
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "metric"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 130
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "current_value"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "baseline_7d_avg"
+            },
+            "properties": [
+              {
+                "id": "decimals",
+                "value": 2
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "deviation_pct"
+            },
+            "properties": [
+              {
+                "id": "unit",
+                "value": "percent"
+              },
+              {
+                "id": "decimals",
+                "value": 1
+              },
+              {
+                "id": "custom.cellOptions",
+                "value": {
+                  "type": "color-background",
+                  "mode": "gradient"
+                }
+              },
+              {
+                "id": "thresholds",
+                "value": {
+                  "mode": "absolute",
+                  "steps": [
+                    {
+                      "color": "#22C55E",
+                      "value": null
+                    },
+                    {
+                      "color": "#FACC15",
+                      "value": 50
+                    },
+                    {
+                      "color": "#EF4444",
+                      "value": 100
+                    }
+                  ]
+                }
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "rada_pg"
+          },
+          "format": "table",
+          "rawSql": "WITH latest AS (\n  SELECT\n    cpu_percent,\n    mem_percent,\n    gpu_percent,\n    vram_mb\n  FROM metrics_history\n  WHERE pc_id = '$pc_id'\n  ORDER BY collected_at DESC\n  LIMIT 1\n), baseline AS (\n  SELECT\n    AVG(cpu_percent) AS cpu_avg,\n    AVG(mem_percent) AS mem_avg,\n    AVG(gpu_percent) AS gpu_avg,\n    AVG(vram_mb) AS vram_avg\n  FROM metrics_history\n  WHERE pc_id = '$pc_id'\n    AND collected_at > NOW() - INTERVAL '7 days'\n)\nSELECT\n  metric,\n  current_value,\n  baseline_7d_avg,\n  deviation_pct\nFROM (\n  SELECT\n    1 AS sort,\n    'CPU 사용률(%)' AS metric,\n    ROUND(l.cpu_percent::numeric, 2) AS current_value,\n    ROUND(b.cpu_avg::numeric, 2) AS baseline_7d_avg,\n    ROUND(CASE WHEN b.cpu_avg IS NULL OR b.cpu_avg = 0 THEN NULL ELSE ((l.cpu_percent - b.cpu_avg) / b.cpu_avg * 100)::numeric END, 1) AS deviation_pct\n  FROM latest l, baseline b\n  UNION ALL\n  SELECT\n    2,\n    'MEM 사용률(%)',\n    ROUND(l.mem_percent::numeric, 2),\n    ROUND(b.mem_avg::numeric, 2),\n    ROUND(CASE WHEN b.mem_avg IS NULL OR b.mem_avg = 0 THEN NULL ELSE ((l.mem_percent - b.mem_avg) / b.mem_avg * 100)::numeric END, 1)\n  FROM latest l, baseline b\n  UNION ALL\n  SELECT\n    3,\n    'GPU 사용률(%)',\n    ROUND(l.gpu_percent::numeric, 2),\n    ROUND(b.gpu_avg::numeric, 2),\n    ROUND(CASE WHEN b.gpu_avg IS NULL OR b.gpu_avg = 0 THEN NULL ELSE ((l.gpu_percent - b.gpu_avg) / b.gpu_avg * 100)::numeric END, 1)\n  FROM latest l, baseline b\n  UNION ALL\n  SELECT\n    4,\n    'VRAM 사용량(MB)',\n    ROUND(l.vram_mb::numeric, 2),\n    ROUND(b.vram_avg::numeric, 2),\n    ROUND(CASE WHEN b.vram_avg IS NULL OR b.vram_avg = 0 THEN NULL ELSE ((l.vram_mb - b.vram_avg) / b.vram_avg * 100)::numeric END, 1)\n  FROM latest l, baseline b\n) x\nORDER BY sort"
+        }
+      ],
+      "description": "선택 PC의 최신 자원 사용량을 최근 7일 평균 baseline과 비교해 편차를 표시합니다."
+    },
+    {
+      "id": 62,
+      "type": "table",
+      "title": "✅ 조치 후 확인 기준",
+      "datasource": {
+        "type": "postgres",
+        "uid": "rada_pg"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 37,
+        "w": 12,
+        "h": 7
+      },
+      "options": {
+        "showHeader": true,
+        "footer": {
+          "show": false
+        },
+        "cellHeight": "sm"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "align": "left",
+            "filterable": false,
+            "cellOptions": {
+              "type": "auto"
+            }
+          },
+          "color": {
+            "mode": "thresholds"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "no"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 45
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "item"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 110
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "content"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 360
+              }
+            ]
+          }
+        ]
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "rada_pg"
+          },
+          "format": "table",
+          "rawSql": "WITH ctx AS (\n  SELECT\n    UPPER(COALESCE(ai.judgment, ai.verdict, ai.details->>'judgment', 'UNKNOWN')) AS judgment,\n    UPPER(COALESCE(ai.severity, an.severity, 'NORMAL')) AS severity\n  FROM (SELECT '$pc_id'::text AS pc_id) b\n  LEFT JOIN LATERAL (\n    SELECT severity\n    FROM anomaly_history\n    WHERE pc_id = b.pc_id\n    ORDER BY detected_at DESC\n    LIMIT 1\n  ) an ON true\n  LEFT JOIN LATERAL (\n    SELECT judgment, verdict, severity, details\n    FROM ai_judgment_history\n    WHERE pc_id = b.pc_id\n    ORDER BY judged_at DESC\n    LIMIT 1\n  ) ai ON true\n)\nSELECT 1 AS no, '즉시 확인 지표' AS item,\n  CASE\n    WHEN judgment = 'MINING' THEN 'GPU 사용률, VRAM 사용량, Top Process, Network Outbound'\n    WHEN judgment = 'HEAVY_LOAD' THEN 'CPU/MEM/GPU 사용률, Top Process, 정상 작업 여부'\n    WHEN judgment = 'HW_ERROR' THEN 'GPU 온도, fan, 장치 인식, driver 상태'\n    WHEN judgment = 'NORMAL' THEN '현재 상태 유지, 주기적 모니터링'\n    ELSE 'Agent 수집 상태, 최신 metric/AI 판단 생성 여부'\n  END AS content\nFROM ctx\nUNION ALL\nSELECT 2, '정상화 기준',\n  CASE\n    WHEN judgment = 'MINING' THEN '의심 process 종료 후 GPU/VRAM 사용량과 외부 연결 감소'\n    WHEN judgment = 'HEAVY_LOAD' THEN '불필요한 고부하 process 종료 후 CPU/MEM/GPU 사용률 정상 범위 회복'\n    WHEN judgment = 'HW_ERROR' THEN '재부팅/점검 후 동일 오류 재발 없음, 장치 상태 안정'\n    WHEN judgment = 'NORMAL' THEN 'Risk Score 낮은 수준 유지'\n    ELSE '데이터 수집 재개 및 AI 판단 정상 생성'\n  END\nFROM ctx\nUNION ALL\nSELECT 3, '재확인 주기',\n  CASE\n    WHEN severity = 'HIGH' THEN '조치 후 5~10분 내 재확인'\n    WHEN severity = 'MEDIUM' THEN '조치 후 10~30분 내 재확인'\n    WHEN severity = 'LOW' THEN '반복 발생 여부 중심으로 모니터링'\n    ELSE '정기 모니터링 유지'\n  END\nFROM ctx\nUNION ALL\nSELECT 4, '조치 완료 판단',\n  'Risk Score 감소, Severity LOW/NORMAL 유지, 동일 판단 재발 없음'\nFROM ctx\nORDER BY no"
+        }
+      ],
+      "description": "AI 판단과 severity에 따라 조치 후 확인해야 할 지표와 완료 기준을 안내합니다."
+    },
+    {
+      "id": 50,
+      "type": "bargauge",
+      "title": "Score Breakdown 최근 1건",
+      "datasource": {
+        "type": "postgres",
+        "uid": "rada_pg"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 44,
+        "w": 24,
+        "h": 6
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "postgres",
+            "uid": "rada_pg"
+          },
+          "format": "table",
+          "rawSql": "WITH latest AS (SELECT scores FROM anomaly_history WHERE pc_id='$pc_id' ORDER BY detected_at DESC LIMIT 1)\nSELECT 'resource' AS pc_id, COALESCE((scores->'score_breakdown'->>'resource')::float, 0) AS v FROM latest\nUNION ALL SELECT 'network', COALESCE((scores->'score_breakdown'->>'network')::float, 0) FROM latest\nUNION ALL SELECT 'process', COALESCE((scores->'score_breakdown'->>'process')::float, 0) FROM latest\nUNION ALL SELECT 'final', COALESCE((scores->'score_breakdown'->>'final')::float, (scores->>'final')::float, (scores->>'total')::float, 0) FROM latest"
+        }
+      ],
+      "description": "최근 이상 탐지 1건의 score_breakdown",
+      "options": {
+        "orientation": "horizontal",
+        "displayMode": "gradient",
+        "showUnfilled": true,
+        "reduceOptions": {
+          "values": true,
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/^v$/"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "#22C55E",
+                "value": null
+              },
+              {
+                "color": "#FACC15",
+                "value": 70
+              },
+              {
+                "color": "#EF4444",
+                "value": 90
+              }
+            ]
+          },
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 80
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "v"
+            },
+            "properties": [
+              {
+                "id": "displayName",
+                "value": "${__data.fields.pc_id}"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }
